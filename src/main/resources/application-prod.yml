@@ -1,0 +1,24 @@
+# 운영: SPRING_PROFILES_ACTIVE=prod
+# ddl-auto=validate 이므로 Flyway/Liquibase 등으로 스키마를 먼저 관리해야 합니다.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  thymeleaf:
+    cache: true
+
+# 운영에서는 API 문서/Swagger UI 를 등록하지 않는다 (엔드포인트 자체가 존재하지 않음 → 404)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

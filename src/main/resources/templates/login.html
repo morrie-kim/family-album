@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('로그인 · 가족앨범')}"></head>
+<body class="auth">
+<svg th:replace="~{fragments :: sprite}"></svg>
+<main class="auth-card">
+    <div class="logo"><svg class="icon"><use href="#i-photo"/></svg></div>
+    <h1>가족의 순간을<br>한곳에 모아요</h1>
+    <p class="lead">이메일로 로그인하고 가족 앨범을 열어 보세요.</p>
+
+    <p class="alert error" role="alert" th:if="${param.error}">이메일 또는 비밀번호가 올바르지 않아요.</p>
+    <p class="alert info" th:if="${param.logout}">로그아웃되었어요.</p>
+
+    <form th:action="@{/login}" method="post" class="stack" style="margin-top:16px">
+        <label class="field"><span>이메일</span>
+            <input type="email" name="username" placeholder="name@example.com" autocomplete="username" required autofocus></label>
+        <label class="field"><span>비밀번호</span>
+            <input type="password" name="password" autocomplete="current-password" required></label>
+        <button type="submit" class="btn primary lg block">로그인</button>
+    </form>
+    <p class="auth-foot">처음이세요? <a th:href="@{/signup}">회원가입</a></p>
+</main>
+</body>
+</html>

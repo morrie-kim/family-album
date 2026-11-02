@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('회원가입 · 가족앨범')}"></head>
+<body class="auth">
+<svg th:replace="~{fragments :: sprite}"></svg>
+<main class="auth-card">
+    <div class="logo"><svg class="icon"><use href="#i-users"/></svg></div>
+    <h1>가족과 함께<br>시작해 볼까요?</h1>
+    <p class="lead">계정을 만들고 가족을 만들거나 합류하세요.</p>
+
+    <p class="alert error" role="alert" th:if="${error}" th:text="${error}"></p>
+
+    <form th:action="@{/signup}" method="post" class="stack" id="signupForm" style="margin-top:16px">
+        <label class="field"><span>이름</span>
+            <input type="text" name="name" th:value="${form.name()}" maxlength="50" placeholder="가족이 알아볼 이름" required></label>
+        <label class="field"><span>이메일</span>
+            <input type="email" name="email" th:value="${form.email()}" placeholder="name@example.com" autocomplete="username" required></label>
+        <label class="field"><span>비밀번호</span>
+            <input type="password" name="password" minlength="8" maxlength="72" placeholder="8자 이상" autocomplete="new-password" required></label>
+
+        <div class="field">
+            <span class="label">가족</span>
+            <div class="seg" role="radiogroup" aria-label="가족 선택 방식">
+                <label><input type="radio" name="mode" value="new" checked><span>새 가족 만들기</span></label>
+                <label><input type="radio" name="mode" value="join"><span>초대 코드로 합류</span></label>
+            </div>
+        </div>
+        <label class="field" data-mode="new"><span>가족 이름</span>
+            <input type="text" name="familyName" th:value="${form.familyName()}" maxlength="100" placeholder="예: 김씨네"></label>
+        <label class="field" data-mode="join"><span>초대 코드</span>
+            <input type="text" name="inviteCode" th:value="${form.inviteCode()}" maxlength="16" placeholder="가족에게 받은 코드" autocapitalize="characters"></label>
+
+        <button type="submit" class="btn primary lg block">가입하고 시작하기</button>
+    </form>
+    <p class="auth-foot">이미 계정이 있나요? <a th:href="@{/login}">로그인</a></p>
+</main>
+</body>
+</html>

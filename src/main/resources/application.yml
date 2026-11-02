@@ -1,0 +1,50 @@
+server:
+  port: 8080
+  tomcat:
+    # 한 요청의 multipart 파트 수 상한(파일 N장 + 텍스트 필드 + CSRF). Tomcat 기본값은 10 → 다중 업로드 시 반드시 상향
+    max-part-count: 100
+  servlet:
+    session:
+      timeout: 12h
+      cookie:
+        http-only: true
+        same-site: lax
+        # secure: true      # HTTPS 뒤에서 운영 시 활성화
+
+spring:
+  application:
+    name: family-album
+  datasource:
+    url: jdbc:h2:file:./data/albumdb;MODE=PostgreSQL
+    username: sa
+    password:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+  servlet:
+    multipart:
+      # 장당 20MB 제한은 서비스에서 파일별로 검사(한 장이 크다고 전체 요청이 실패하지 않도록 여유를 둠)
+      max-file-size: 50MB
+      max-request-size: 300MB
+  thymeleaf:
+    cache: false
+
+app:
+  storage:
+    root: ${PHOTO_STORAGE_ROOT:./data/photos}
+  upload:
+    max-files-per-request: 50
+    max-file-size: 20MB
+
+# API 문서(Swagger UI): 기본 활성(dev). 운영은 application-prod.yml 에서 비활성화.
+springdoc:
+  paths-to-match: /api/**        # 화면(Thymeleaf) 컨트롤러는 문서에서 제외
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

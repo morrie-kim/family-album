@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('가족 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'family')}"></header>
+
+<main class="container" style="max-width:720px">
+    <section class="page-head">
+        <div>
+            <h1 th:text="${family.name()}">우리 가족</h1>
+            <p class="caption"><span class="num" th:text="${family.members().size()}">0</span>명이 함께하고 있어요</p>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>초대 코드</h2>
+        <p class="caption">가족이 회원가입할 때 이 코드를 입력하면 같은 앨범을 함께 써요.</p>
+        <div class="invite">
+            <span class="code" th:text="${family.inviteCode()}">ABCD1234</span>
+            <button type="button" class="btn primary" th:data-copy="${family.inviteCode()}">
+                <svg class="icon"><use href="#i-copy"/></svg><span data-copy-label>코드 복사</span>
+            </button>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>구성원</h2>
+        <ul class="members">
+            <li th:each="m : ${family.members()}">
+                <span class="avatar" th:text="${#strings.substring(m.name(), 0, 1)}">김</span>
+                <span><strong th:text="${m.name()}">이름</strong><span class="caption" th:text="${m.email()}">email</span></span>
+            </li>
+        </ul>
+    </section>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('family')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

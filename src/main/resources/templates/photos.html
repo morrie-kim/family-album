@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('사진 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'photos')}"></header>
+
+<main class="container">
+    <section class="page-head">
+        <div>
+            <h1>우리 가족 사진</h1>
+            <p class="caption"><span class="num" th:text="${photoPage.totalElements()}">0</span>장의 추억</p>
+        </div>
+        <button type="button" class="btn primary" data-open-upload th:unless="${photoPage.content().isEmpty()}">
+            <svg class="icon"><use href="#i-upload"/></svg><span class="label-text">사진 올리기</span>
+        </button>
+    </section>
+
+    <section class="empty" th:if="${photoPage.content().isEmpty()}">
+        <span class="ring"><svg class="icon lg"><use href="#i-photo"/></svg></span>
+        <h2>아직 사진이 없어요</h2>
+        <p class="caption">여러 장을 한 번에 올려서 가족과 나눠 보세요.</p>
+        <button type="button" class="btn primary lg" data-open-upload style="margin-top:8px">
+            <svg class="icon"><use href="#i-upload"/></svg>사진 올리기
+        </button>
+    </section>
+
+    <section class="grid" aria-label="사진 목록" th:unless="${photoPage.content().isEmpty()}">
+        <button type="button" class="tile" th:each="p : ${photoPage.content()}"
+                th:data-src="@{/photos/{id}/file(id=${p.id()})}"
+                th:data-delete-url="@{/photos/{id}/delete(id=${p.id()})}"
+                th:data-name="${p.originalFilename()}"
+                th:data-uploader="${p.uploaderName()}"
+                th:data-date="${#temporals.format(p.createdLocal(), 'yyyy.MM.dd HH:mm')}"
+                th:data-desc="${p.description()}"
+                th:data-mine="${p.mine()}"
+                th:data-private="${p.isPrivate()}"
+                th:aria-label="|${p.uploaderName()}님이 올린 사진 열기|">
+            <img th:src="@{/photos/{id}/file(id=${p.id()})}" th:alt="${p.originalFilename()}" loading="lazy" decoding="async">
+            <span class="badge" th:if="${p.isPrivate()}"><svg class="icon"><use href="#i-lock"/></svg>나만 보기</span>
+            <span class="who-chip" th:text="${p.uploaderName()}">이름</span>
+        </button>
+    </section>
+
+    <div class="pager" th:if="${photoPage.totalPages() > 1}">
+        <a class="btn secondary sm" th:if="${photoPage.page() > 0}" th:href="@{/photos(page=${photoPage.page() - 1})}">이전</a>
+        <span class="caption num" th:text="${photoPage.page() + 1} + ' / ' + ${photoPage.totalPages()}">1 / 1</span>
+        <a class="btn secondary sm" th:if="${photoPage.page() + 1 < photoPage.totalPages()}" th:href="@{/photos(page=${photoPage.page() + 1})}">다음</a>
+    </div>
+</main>
+
+<!-- 업로드 시트: 다중 선택 / 드래그 앤 드롭 / 미리보기 / 진행률 -->
+<dialog id="uploadDialog" class="sheet" aria-labelledby="uploadTitle"
+        th:data-action="@{/photos}" th:data-max-bytes="${maxFileBytes}" th:data-max-mb="${maxFileMb}">
+    <form id="uploadForm" th:action="@{/photos}" method="post" enctype="multipart/form-data">
+        <div class="sheet-head">
+            <h2 id="uploadTitle">사진 올리기</h2>
+            <button type="button" class="icon-btn" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+
+        <div class="sheet-body">
+            <label class="dropzone" id="dropzone">
+                <span class="ring"><svg class="icon lg"><use href="#i-upload"/></svg></span>
+                <strong>사진을 끌어다 놓거나 눌러서 선택하세요</strong>
+                <span class="caption">여러 장을 한 번에 · 장당 최대 <span class="num" th:text="${maxFileMb}">20</span>MB · JPG, PNG, WEBP, GIF, HEIC</span>
+                <input type="file" id="fileInput" name="files" multiple required
+                       accept="image/jpeg,image/png,image/webp,image/gif,image/heic">
+            </label>
+
+            <p class="alert error" id="notice" role="alert" hidden></p>
+            <ul class="previews" id="previews" aria-label="선택한 사진"></ul>
+
+            <div class="field">
+                <span class="label">공개 범위</span>
+                <div class="seg" role="radiogroup" aria-label="공개 범위">
+                    <label><input type="radio" name="visibility" value="FAMILY" checked><span>가족 공개</span></label>
+                    <label><input type="radio" name="visibility" value="PRIVATE"><span>나만 보기</span></label>
+                </div>
+            </div>
+            <label class="field"><span>설명 (선택)</span>
+                <input type="text" name="description" maxlength="500" placeholder="선택한 모든 사진에 같은 설명이 붙어요"></label>
+
+            <div class="progress" id="progress" hidden>
+                <div class="track"><div class="bar" id="bar"></div></div>
+                <div class="progress-text"><span id="progressLabel">업로드 중…</span><span class="num" id="progressPct">0%</span></div>
+            </div>
+            <div class="result" id="result" role="status" aria-live="polite" hidden></div>
+        </div>
+
+        <div class="sheet-foot">
+            <button type="button" class="btn secondary" id="cancelBtn" data-close>취소</button>
+            <button type="submit" class="btn primary" id="submitBtn" disabled>올리기</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- 사진 뷰어 -->
+<dialog id="viewer" class="viewer" aria-label="사진 보기">
+    <div class="viewer-top">
+        <span class="caption num" id="viewerCount" style="color:rgba(255,255,255,.65)"></span>
+        <button type="button" class="icon-btn" data-close aria-label="닫기"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="viewer-stage">
+        <button type="button" class="icon-btn nav-btn prev" id="viewerPrev" aria-label="이전 사진"><svg class="icon"><use href="#i-left"/></svg></button>
+        <img id="viewerImg" alt="">
+        <button type="button" class="icon-btn nav-btn next" id="viewerNext" aria-label="다음 사진"><svg class="icon"><use href="#i-right"/></svg></button>
+    </div>
+    <div class="viewer-info">
+        <div class="meta">
+            <span class="by"><span id="viewerBy"></span><svg class="icon" id="viewerLock" style="width:14px;height:14px" hidden><use href="#i-lock"/></svg></span>
+            <span class="when num" id="viewerWhen"></span>
+            <span class="desc" id="viewerDesc" hidden></span>
+        </div>
+        <form id="deleteForm" method="post" th:action="@{/photos/0/delete}" class="viewer-actions" hidden>
+            <span class="confirm-text" id="confirmText" hidden>이 사진을 삭제할까요?</span>
+            <button type="button" class="btn ghost danger-text sm" id="deleteAsk"><svg class="icon"><use href="#i-trash"/></svg>삭제</button>
+            <button type="button" class="btn secondary sm" id="deleteCancel" hidden>취소</button>
+            <button type="submit" class="btn danger sm" id="deleteGo" hidden>삭제하기</button>
+        </form>
+    </div>
+</dialog>
+
+<nav th:replace="~{fragments :: tabbar('photos')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>
