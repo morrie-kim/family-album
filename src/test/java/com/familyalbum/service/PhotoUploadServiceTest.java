@@ -7,9 +7,11 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.familyalbum.config.AppProperties;
-import com.familyalbum.domain.Visibility;
+import com.familyalbum.domain.Permission;
 import com.familyalbum.web.ApiException;
 import com.familyalbum.web.Dtos.PhotoResponse;
 import com.familyalbum.web.Dtos.UploadResult;
@@ -24,9 +26,10 @@ import org.springframework.web.multipart.MultipartFile;
 class PhotoUploadServiceTest {
 
     private final PhotoService photoService = mock(PhotoService.class);
-    private final PhotoUploadService service = new PhotoUploadService(photoService,
+    private final FolderAccessService access = mock(FolderAccessService.class);
+    private final PhotoUploadService service = new PhotoUploadService(photoService, access,
             new AppProperties(new AppProperties.Storage("build/x"),
-                    new AppProperties.Upload(3, DataSize.ofMegabytes(20))));
+                    new AppProperties.Upload(3, DataSize.ofMegabytes(20)), null, null, null));
 
     private static MockMultipartFile file(String name, String type) {
         return new MockMultipartFile("files", name, type, new byte[] {1, 2, 3});
@@ -34,7 +37,7 @@ class PhotoUploadServiceTest {
 
     @Test
     void failureOfOneFileDoesNotAffectOthers() {
-        PhotoResponse ok = new PhotoResponse(1L, "a.jpg", null, Visibility.FAMILY, 3, 1L, "아빠", Instant.now(), true);
+        PhotoResponse ok = new PhotoResponse(1L, "a.jpg", null, 7L, "가족 앨범", 3, 1L, "아빠", Instant.now(), true, true);
         doReturn(ok).when(photoService)
                 .upload(any(), argThat(f -> f != null && "a.jpg".equals(f.getOriginalFilename())), any(), any());
         doThrow(new ApiException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 이미지 형식입니다."))
@@ -45,7 +48,7 @@ class PhotoUploadServiceTest {
 
         UploadResult r = service.uploadAll(null,
                 List.of(file("a.jpg", "image/jpeg"), file("b.txt", "text/plain"), file("c.jpg", "image/jpeg")),
-                null, Visibility.FAMILY);
+                null, 7L);
 
         assertEquals(1, r.uploaded().size());
         assertEquals(2, r.failed().size());
@@ -55,11 +58,22 @@ class PhotoUploadServiceTest {
 
     @Test
     void rejectsEmptyAndTooManyFiles() {
-        assertThrows(ApiException.class, () -> service.uploadAll(null, List.of(), null, Visibility.FAMILY));
+        assertThrows(ApiException.class, () -> service.uploadAll(null, List.of(), null, 7L));
         List<MultipartFile> four = List.of(file("1.jpg", "image/jpeg"), file("2.jpg", "image/jpeg"),
                 file("3.jpg", "image/jpeg"), file("4.jpg", "image/jpeg"));
-        ApiException e = assertThrows(ApiException.class,
-                () -> service.uploadAll(null, four, null, Visibility.FAMILY));
+        ApiException e = assertThrows(ApiException.class, () -> service.uploadAll(null, four, null, 7L));
         assertEquals(HttpStatus.BAD_REQUEST, e.status());
+    }
+
+    @Test
+    void noFolderPermissionStopsBeforeAnyFileIsProcessed() {
+        doThrow(new ApiException(HttpStatus.FORBIDDEN, "이 폴더에 대한 권한이 없습니다."))
+                .when(access).requireFolder(any(), any(), any(Permission.class));
+
+        ApiException e = assertThrows(ApiException.class,
+                () -> service.uploadAll(null, List.of(file("a.jpg", "image/jpeg")), null, 7L));
+
+        assertEquals(HttpStatus.FORBIDDEN, e.status());
+        verify(photoService, never()).upload(any(), any(), any(), any());
     }
 }

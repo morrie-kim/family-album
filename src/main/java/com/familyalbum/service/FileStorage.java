@@ -9,10 +9,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamSource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 
 /** 로컬 디스크 저장소. 가족(familyId)별 디렉터리로 분리. S3 등으로 교체 시 이 클래스만 바꾸면 됨. */
 @Component
@@ -24,12 +24,12 @@ public class FileStorage {
         this.root = Path.of(props.storage().root()).toAbsolutePath().normalize();
     }
 
-    public String store(Long familyId, MultipartFile file, String extension) {
+    public String store(Long familyId, InputStreamSource source, String extension) {
         try {
             Path dir = root.resolve(String.valueOf(familyId));
             Files.createDirectories(dir);
             String name = UUID.randomUUID() + extension;
-            try (InputStream in = file.getInputStream()) {
+            try (InputStream in = source.getInputStream()) {
                 Files.copy(in, dir.resolve(name));
             }
             return name;

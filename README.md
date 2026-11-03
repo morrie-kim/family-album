@@ -1,75 +1,100 @@
-# 가족앨범 (단일 서버)
+# 가족앨범
 
-백엔드와 프론트엔드를 하나의 Spring Boot 애플리케이션으로 통합한 버전입니다.
+가족 구성원이 각자 계정을 만들고, **폴더별로 계정마다 접근 권한을 정해** 사진을 공유하는 서비스.
+단일 Spring Boot 서버(화면 + REST API)이며 구글 포토에서 사진을 가져올 수 있습니다.
 
 - Java 24, Spring Boot 3.5.x, Spring MVC + Thymeleaf, Spring Data JPA, Spring Security(세션 로그인 + CSRF)
-- DB: H2(개발, 기본) / PostgreSQL(`prod` 프로파일)
-- 사진 파일: 로컬 디스크 `data/photos/{familyId}/{uuid}.ext`
+- DB: H2(개발, 기본) / PostgreSQL(`prod` 프로파일) · 사진 파일: 로컬 디스크 `data/photos/{familyId}/{uuid}.ext`
 
 ## 실행
 ```bash
 gradle wrapper --gradle-version 8.14   # 최초 1회
 ./gradlew bootRun                      # http://localhost:8080
 ```
-회원가입(새 가족 이름 입력) → `가족` 메뉴의 초대 코드를 가족에게 전달 → 같은 코드로 가입하면 앨범 공유.
+회원가입(새 가족 이름 입력) → 첫 가입자가 **가족 관리자(ADMIN)** 가 되고 기본 폴더 “가족 앨범”이 만들어집니다.
+`가족` 메뉴의 초대 코드로 다른 가족이 가입하면 기본 폴더에 **올리기(EDIT)** 권한이 자동 부여됩니다.
 
-## 환경변수
-- `PHOTO_STORAGE_ROOT` (기본 `./data/photos`)
-- prod: `SPRING_PROFILES_ACTIVE=prod`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
+> ⚠ 이전 버전(폴더/권한 도입 전)으로 만든 개발 DB 는 스키마가 달라 `./data` 를 지우고 시작하세요.
 
-## 통합하면서 달라진 점
-- 별도 서버 간 REST 호출/JWT 제거 → 컨트롤러가 서비스를 직접 호출, 인증은 HttpSession 기반
-- 이미지는 `/photos/{id}/file` 에서 권한 확인 후 직접 스트리밍(프록시 단계 없음)
-- CSRF 보호 기본 적용(Thymeleaf `th:action` 이 토큰 자동 삽입)
-- `/api/**` REST API 는 같은 서비스 위에 별도 보안 체인(Basic, stateless)으로 제공
+## 1. 폴더별·계정별 접근 권한
+| 권한 | 의미 |
+|---|---|
+| 접근 없음 | 폴더가 목록에도 보이지 않고, 직접 URL 로 접근해도 404 |
+| 보기 (VIEW) | 폴더 안 사진 열람 |
+| 올리기 (EDIT) | 보기 + 사진 업로드/가져오기 + **내가 올린 사진** 삭제 |
+| 관리 (MANAGE) | **가족 관리자** 또는 **폴더를 만든 사람** — 항상 전체 권한. 이름 변경·권한 설정·폴더 삭제, 다른 사람 사진 삭제 |
 
-## 다중 업로드
-- 화면: `사진 올리기` 시트에서 여러 장 선택 / 드래그 앤 드롭 / 붙여넣기 → 미리보기(개별 제거) → 공개 범위 선택 → 진행률 표시
-  - 브라우저가 10장씩 순차 요청(`POST /photos`, Ajax)으로 나눠 전송하므로 장수가 많아도 요청 크기·파트 수 한도에 걸리지 않음
-  - 파일별 독립 처리: 일부가 실패해도 나머지는 저장되고, 실패 파일만 사유와 함께 남아 재시도 가능
-  - JS 비활성 환경에서는 같은 폼이 일반 전송(`files` 다중 필드) 후 리다이렉트로 폴백
-- API: `POST /api/photos/batch` (multipart `files` 다중) → `{ uploaded: [...], failed: [{filename, reason}] }`
-- 설정(`application.yml`)
-  - `app.upload.max-files-per-request` (기본 50), `app.upload.max-file-size` (기본 20MB, 파일별 검사)
-  - `server.tomcat.max-part-count: 100` — **Tomcat 기본값이 10**이라 설정하지 않으면 11장 이상 한 번에 보낼 때 실패
-  - `spring.servlet.multipart.max-file-size / max-request-size` 는 요청 전체 방어선(50MB / 300MB)
-- 리버스 프록시(Nginx/Ingress/Route) 뒤라면 `client_max_body_size` 등 본문 크기 한도도 함께 확인
+- 사진 화면 상단 폴더 바에서 폴더 전환 · `새 폴더` · `폴더 설정`(관리 권한자만). 폴더 설정 화면에서 가족 구성원별로 *접근 없음 / 보기 / 올리기* 를 선택합니다.
+- 기본 폴더는 삭제할 수 없고, 사진이 남은 폴더도 삭제할 수 없습니다.
+- 권한 판정은 `FolderAccessService` 한 곳에서 처리하고 단위 테스트(`FolderAccessServiceTest`)로 고정했습니다.
+- API: `GET/POST /api/folders`, `GET/PUT/DELETE /api/folders/{id}` (Swagger 참고)
 
-## UI
-`TOSS-DESIGN.md` 의 색상·타이포·간격·컴포넌트·모션·다크모드 토큰을 `static/css/app.css` 에 반영
-(상단 바 56px blur, 모바일 하단 탭, 카드 16px, 입력 필드 포커스 스타일, 페이지당 하나의 Primary CTA, 아웃라인 1.5px 아이콘, `prefers-reduced-motion` 대응).
-- 폰트는 문서의 스택을 그대로 쓰되 Toss 전용 폰트는 번들하지 않으므로 시스템 한글 폰트로 대체됨
+## 2. 구글 포토 연결
+각 가족 구성원이 **자기 구글 계정**을 연결하고, 구글 포토 선택 창(Picker)에서 고른 사진만 폴더로 가져옵니다.
 
-## API 문서 (Swagger / OpenAPI)
-화면(Thymeleaf)과 별개로 같은 서비스 계층 위에 REST API(`/api/**`)를 제공하며 springdoc-openapi 로 문서화합니다.
+> 2025-03-31 부터 구글은 전체 라이브러리를 읽는 Library API 스코프(`photoslibrary.readonly` 등)를 제거했습니다.
+> 따라서 이 앱은 **Picker API**(`photospicker.mediaitems.readonly`)만 사용하며, 사용자가 직접 선택한 사진 외에는 접근하지 않습니다.
 
+### 설정 (한 번)
+1. [Google Cloud Console](https://console.cloud.google.com/) 에서 프로젝트 생성 → **Google Photos Picker API** 사용 설정
+2. **OAuth 동의 화면** 구성(외부) → 범위에 `.../auth/photospicker.mediaitems.readonly` 추가 → **테스트 사용자**에 가족 구글 계정 추가
+3. **사용자 인증 정보 → OAuth 클라이언트 ID(웹 애플리케이션)** 생성
+   - 승인된 리디렉션 URI: `https://<NGROK_DOMAIN>/google/callback` (로컬 테스트는 `http://localhost:8080/google/callback`)
+4. 환경변수 설정(`.env.example` 참고): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY`(`openssl rand -base64 32`)
+
+### 사용
+상단 `구글 포토` 메뉴 → `구글 계정 연결` → 가져올 폴더 선택 → `구글 포토에서 사진 고르기` → 열린 창에서 선택·완료 → 자동으로 가져옵니다(한 번에 최대 50장).
+- 이미 가져온 사진(구글 mediaItem id 기준)은 건너뜁니다. 동영상은 제외됩니다.
+- refresh token 은 AES-256-GCM 으로 암호화해 저장하고, 연결 해제 시 구글 쪽 토큰도 폐기합니다.
+
+### 알아둘 점
+- **‘테스트’ 게시 상태의 앱은 refresh token 이 7일 뒤 만료**됩니다(구글 정책). 만료되면 앱이 연결을 지우고 “다시 연결해 주세요”를 안내합니다. 오래 쓰려면 동의 화면을 *프로덕션*으로 게시하세요(민감 스코프는 구글 검증이 필요할 수 있고, 검증 전에는 “확인되지 않은 앱” 경고와 사용자 수 제한이 있습니다).
+- 가져온 사진의 HEIC 등 일부 형식은 서버 허용 형식(JPEG/PNG/WEBP/GIF/HEIC)에 따라 거절될 수 있습니다.
+
+## 3. ngrok 으로 호스팅
+```bash
+cp .env.example .env        # NGROK_DOMAIN, GOOGLE_* 채우기
+./scripts/ngrok-up.sh       # ngrok 터널 → APP_BASE_URL 설정 → 앱 기동(profile: ngrok)
+```
+- ngrok 계정의 **고정(static) 도메인**을 쓰세요. 구글 redirect URI 를 미리 등록해야 하므로 주소가 바뀌면 연동이 깨집니다.
+- 수동 실행: `ngrok http 8080 --url=<도메인>` 후 `APP_BASE_URL=https://<도메인> SPRING_PROFILES_ACTIVE=ngrok ./gradlew bootRun`
+- `ngrok` 프로파일은 세션 쿠키를 `Secure` 로 설정하고, `forward-headers-strategy: framework` 로 `X-Forwarded-*` 를 신뢰합니다.
+- **인터넷에 공개되는 서버**입니다. 내 가족을 만든 뒤에는 `ALLOW_NEW_FAMILY=false` 로 재시작해 외부인이 새 가족을 만들지 못하게 하세요(초대 코드 가입만 가능). 필요하면 ngrok 의 IP 제한/인증 기능도 함께 사용하세요.
+- ngrok 은 내 PC 가 켜져 있는 동안만 서비스됩니다. 상시 운영은 서버/클라우드 배포를 권장합니다.
+
+## 4. 다중 업로드
+- `사진 올리기` 시트: 여러 장 선택/드래그 앤 드롭/붙여넣기 → 미리보기 → **올릴 폴더 선택** → 진행률. 브라우저가 10장씩 순차 전송, 파일별 독립 처리(일부 실패해도 나머지 저장).
+- API: `POST /api/photos/batch` (multipart `files`, `folderId`)
+- 설정: `app.upload.max-files-per-request`(50), `app.upload.max-file-size`(20MB), `server.tomcat.max-part-count: 100` (Tomcat 기본 10 → 반드시 상향)
+- 리버스 프록시 뒤라면 본문 크기 한도(`client_max_body_size` 등)도 확인
+
+## 5. API 문서 (Swagger / OpenAPI)
 | 환경 | Swagger UI | OpenAPI JSON |
 |---|---|---|
 | dev (기본) | http://localhost:8080/swagger-ui.html | http://localhost:8080/v3/api-docs |
 | prod | **비노출** (404) | **비노출** (404) |
 
-- API 인증: HTTP Basic(이메일/비밀번호), stateless, CSRF 없음. Swagger UI 우측 상단 **Authorize** 에 입력 후 *Try it out*. 운영에서는 반드시 HTTPS.
-- 회원가입 `POST /api/auth/signup` 은 인증 불필요.
-- 운영 비노출은 3중으로 보장:
-  1. `application-prod.yml` 의 `springdoc.api-docs.enabled=false`, `springdoc.swagger-ui.enabled=false` → 엔드포인트 미등록
-  2. `OpenApiConfig` 가 `@Profile("!prod")` → 문서 메타 빈도 로드 안 됨
-  3. `SecurityConfig` 가 문서 켜진 환경에서만 `/v3/api-docs/**`, `/swagger-ui/**` 를 permitAll
-- 회귀 방지: `SwaggerProdExposureTest`(prod 에서 로그인 사용자도 404), `SwaggerDevExposureTest`
+- API 인증: HTTP Basic(이메일/비밀번호), stateless. 운영에서는 반드시 HTTPS.
+- 운영 비노출: `application-prod.yml` 의 springdoc 비활성화 + `OpenApiConfig` `@Profile("!prod")` + 보안 설정에서 문서 경로 허용 조건부.
+  회귀 방지 테스트: `SwaggerProdExposureTest`, `SwaggerDevExposureTest`
+- ⚠ `ngrok` 프로파일은 `prod` 가 아니므로 **Swagger 가 공개 URL 로 노출**됩니다. 외부 공개 시 `SPRING_PROFILES_ACTIVE=ngrok,prod` 로 함께 지정하세요(prod 는 `DB_URL` 등 필요).
 
 ## 구조
 ```
 com.familyalbum
- ├─ config      SecurityConfig, AppProperties
- ├─ domain      Family, AppUser, Photo, Visibility
+ ├─ config      SecurityConfig, OpenApiConfig, AppProperties
+ ├─ domain      Family, AppUser, Folder, FolderAccess, Photo, GoogleAccount, Permission/AccessLevel/FamilyRole
  ├─ repository  Spring Data JPA
  ├─ security    AppPrincipal, AppUserDetailsService
- ├─ service     AuthService, PhotoService, FamilyService, FileStorage
- ├─ web         AuthWebController, AlbumController, WebAdvice, Dtos (화면)
- └─ api         AccountApiController, PhotoApiController, ApiExceptionHandler (REST)
+ ├─ service     AuthService, FolderService, FolderAccessService, PhotoService, PhotoUploadService, FamilyService, FileStorage
+ ├─ google      GoogleOAuthClient, GooglePickerClient, GoogleConnectionService, GoogleImportService, TokenCipher
+ ├─ web         화면 컨트롤러(Album/Folder/Google/Auth), WebAdvice, Dtos
+ └─ api         REST(Account/Folder/Photo) + ApiExceptionHandler
 ```
 
 ## 운영 전 보완 필요
 1. Flyway/Liquibase 스키마 마이그레이션 (prod 는 `ddl-auto: validate`)
 2. 업로드 매직바이트 검증, 썸네일 생성
-3. 로그인 시도 제한, 비밀번호 재설정, 가족 구성원 탈퇴/강퇴
-4. 테스트 코드 (Testcontainers 권장)
+3. 로그인 시도 제한, 비밀번호 재설정, 가족 구성원 탈퇴/강퇴·관리자 위임
+4. 구글 가져오기를 백그라운드 작업으로 전환(현재는 요청 안에서 동기 처리, 최대 50장)
+5. 통합 테스트(Testcontainers)

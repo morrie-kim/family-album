@@ -1,6 +1,5 @@
 package com.familyalbum.api;
 
-import com.familyalbum.domain.Visibility;
 import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.service.PhotoService;
 import com.familyalbum.service.PhotoUploadService;
@@ -42,14 +41,14 @@ public class PhotoApiController {
     }
 
     @Operation(summary = "사진 업로드",
-            description = "jpeg/png/webp/gif/heic, 최대 20MB. visibility: FAMILY(가족 공개) 또는 PRIVATE(나만 보기)")
+            description = "jpeg/png/webp/gif/heic, 최대 20MB. folderId 폴더에 대한 EDIT 이상 권한이 필요합니다.")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public PhotoResponse upload(@Parameter(hidden = true) @AuthenticationPrincipal AppPrincipal me,
                                 @RequestPart("file") MultipartFile file,
                                 @RequestParam(required = false) String description,
-                                @RequestParam(defaultValue = "FAMILY") Visibility visibility) {
-        return photoService.upload(me, file, description, visibility);
+                                @RequestParam Long folderId) {
+        return photoService.upload(me, file, description, folderId);
     }
 
     @Operation(summary = "사진 다중 업로드",
@@ -59,16 +58,17 @@ public class PhotoApiController {
     public UploadResult uploadBatch(@Parameter(hidden = true) @AuthenticationPrincipal AppPrincipal me,
                                     @RequestPart("files") List<MultipartFile> files,
                                     @RequestParam(required = false) String description,
-                                    @RequestParam(defaultValue = "FAMILY") Visibility visibility) {
-        return uploadService.uploadAll(me, files, description, visibility);
+                                    @RequestParam Long folderId) {
+        return uploadService.uploadAll(me, files, description, folderId);
     }
 
-    @Operation(summary = "사진 목록", description = "내가 볼 수 있는 사진(가족 공개 + 내 비공개), 최신순")
+    @Operation(summary = "사진 목록", description = "내가 접근할 수 있는 폴더의 사진, 최신순. folderId 로 한 폴더만 조회할 수 있습니다.")
     @GetMapping
     public PageResponse<PhotoResponse> list(@Parameter(hidden = true) @AuthenticationPrincipal AppPrincipal me,
+                                            @RequestParam(required = false) Long folderId,
                                             @RequestParam(defaultValue = "0") int page,
                                             @RequestParam(defaultValue = "24") int size) {
-        return photoService.list(me, page, size);
+        return photoService.list(me, folderId, page, size);
     }
 
     @Operation(summary = "사진 원본 다운로드/표시")
@@ -87,7 +87,7 @@ public class PhotoApiController {
                 .body(f.resource());
     }
 
-    @Operation(summary = "사진 삭제", description = "업로더 본인만 삭제할 수 있습니다.")
+    @Operation(summary = "사진 삭제", description = "폴더 관리자(MANAGE) 또는 EDIT 권한이 있는 업로더 본인만 삭제할 수 있습니다.")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@Parameter(hidden = true) @AuthenticationPrincipal AppPrincipal me, @PathVariable Long id) {

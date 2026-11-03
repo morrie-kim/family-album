@@ -24,16 +24,22 @@ public class AppUser {
     @JoinColumn(name = "family_id")
     private Family family;
 
+    /** 기존 DB 에 컬럼이 추가되어도 ddl-auto=update 가 깨지지 않도록 DB 기본값 지정 */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'MEMBER'")
+    private FamilyRole familyRole = FamilyRole.MEMBER;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
     protected AppUser() {}
 
-    public AppUser(String email, String passwordHash, String name, Family family) {
+    public AppUser(String email, String passwordHash, String name, Family family, FamilyRole familyRole) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.name = name;
         this.family = family;
+        this.familyRole = familyRole;
     }
 
     public Long getId() { return id; }
@@ -41,5 +47,6 @@ public class AppUser {
     public String getPasswordHash() { return passwordHash; }
     public String getName() { return name; }
     public Family getFamily() { return family; }
+    public FamilyRole getFamilyRole() { return familyRole; }
     public Instant getCreatedAt() { return createdAt; }
 }

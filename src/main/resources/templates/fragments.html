@@ -23,6 +23,10 @@
     <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5A2 2 0 015.5 5.5h3.2l2 2.2h7.8a2 2 0 012 2v7.8a2 2 0 01-2 2h-13a2 2 0 01-2-2z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 01-.6-7.96A5.5 5.5 0 0117.2 8.6 4.5 4.5 0 0117.5 18H7z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0012.5 4h-6A2.5 2.5 0 004 6.5v6A2.5 2.5 0 006.5 15H9"/></symbol>
 </svg>
 
@@ -34,6 +38,7 @@
     <nav class="toplinks" aria-label="주 메뉴">
         <a th:href="@{/photos}" th:attr="aria-current=${active == 'photos' ? 'page' : null}">사진</a>
         <a th:href="@{/family}" th:attr="aria-current=${active == 'family' ? 'page' : null}">가족</a>
+        <a th:href="@{/google}" th:attr="aria-current=${active == 'google' ? 'page' : null}">구글 포토</a>
     </nav>
     <span class="spacer"></span>
     <span class="who" th:text="${me.name()}">이름</span>
@@ -48,6 +53,8 @@
         <svg class="icon"><use href="#i-photo"/></svg>사진</a>
     <a th:href="@{/family}" th:attr="aria-current=${active == 'family' ? 'page' : null}">
         <svg class="icon"><use href="#i-users"/></svg>가족</a>
+    <a th:href="@{/google}" th:attr="aria-current=${active == 'google' ? 'page' : null}">
+        <svg class="icon"><use href="#i-cloud"/></svg>구글 포토</a>
     <form th:action="@{/logout}" method="post">
         <button type="submit"><svg class="icon"><use href="#i-logout"/></svg>로그아웃</button>
     </form>

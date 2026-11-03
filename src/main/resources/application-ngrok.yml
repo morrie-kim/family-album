@@ -1,0 +1,6 @@
+# SPRING_PROFILES_ACTIVE=ngrok — ngrok(HTTPS) 뒤에서 호스팅할 때
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true

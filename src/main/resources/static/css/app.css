@@ -302,3 +302,49 @@ dialog { color: var(--g900); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ── Select ────────────────────────────────── */
+select {
+  width: 100%; appearance: none; background: var(--input-bg) no-repeat right 14px center / 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 4.5l4 4 4-4' fill='none' stroke='%238B95A1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  border: 1.5px solid transparent; border-radius: 10px; padding: 14px 40px 14px 16px; font-size: 16px; color: var(--g900);
+  transition: border-color var(--fast) var(--ease), background-color var(--fast) var(--ease);
+}
+select:focus { outline: none; border-color: var(--blue); background-color: var(--surface); }
+
+/* ── Folder bar ────────────────────────────── */
+.folderbar { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 16px; margin: -12px 0 12px; scrollbar-width: none; }
+.folderbar::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border); font-size: 15px; font-weight: 600; color: var(--g700);
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.chip .icon { width: 16px; height: 16px; }
+.chip:hover { background: var(--g100); }
+.chip.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.chip.active .count { color: rgba(255,255,255,.8); }
+.chip.ghost { background: transparent; border-style: dashed; color: var(--g600); }
+.chip .count { font-size: 13px; font-weight: 500; color: var(--g500); }
+
+/* ── Access list (폴더 권한) ───────────────── */
+.access-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; }
+.access-list li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.access-list li:first-child { border-top: 0; }
+.access-list .who-col { flex: 1; min-width: 120px; display: grid; }
+.access-list .who-col strong { font-weight: 600; }
+.access-list .fixed { margin-left: auto; text-align: right; }
+.seg.sm span { padding: 8px 12px; font-size: 14px; white-space: nowrap; }
+.access-list .seg { margin-left: auto; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.form-actions .btn.primary { min-width: 140px; }
+@media (max-width: 639px) {
+  .access-list .seg { width: 100%; margin-left: 0; }
+  .form-actions { position: sticky; bottom: calc(56px + env(safe-area-inset-bottom) + 8px); }
+  .form-actions .btn { flex: 1; }
+}
+
+/* ── Misc ──────────────────────────────────── */
+.badge-role { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 12px; font-weight: 600; vertical-align: middle; }
+.folder-tag { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 12px; font-weight: 600; }
+code, .code-inline { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 14px; background: var(--g100); padding: 2px 6px; border-radius: 6px; word-break: break-all; }

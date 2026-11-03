@@ -1,20 +1,23 @@
 package com.familyalbum.web;
 
 import com.familyalbum.config.AppProperties;
-import com.familyalbum.domain.Visibility;
 import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.service.FamilyService;
+import com.familyalbum.service.FolderService;
 import com.familyalbum.service.PhotoService;
-import com.familyalbum.service.PhotoUploadService;
 import com.familyalbum.service.PhotoService.FileContent;
+import com.familyalbum.service.PhotoUploadService;
+import com.familyalbum.web.Dtos.FolderResponse;
 import com.familyalbum.web.Dtos.UploadResult;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,13 +33,15 @@ public class AlbumController {
     private final PhotoService photoService;
     private final PhotoUploadService uploadService;
     private final FamilyService familyService;
+    private final FolderService folderService;
     private final AppProperties props;
 
-    public AlbumController(PhotoService photoService, PhotoUploadService uploadService,
-                           FamilyService familyService, AppProperties props) {
+    public AlbumController(PhotoService photoService, PhotoUploadService uploadService, FamilyService familyService,
+                           FolderService folderService, AppProperties props) {
         this.photoService = photoService;
         this.uploadService = uploadService;
         this.familyService = familyService;
+        this.folderService = folderService;
         this.props = props;
     }
 
@@ -45,10 +50,21 @@ public class AlbumController {
         return "redirect:/photos";
     }
 
+    /** folder 파라미터가 없으면 내가 접근 가능한 모든 폴더의 사진 */
     @GetMapping("/photos")
     String list(@AuthenticationPrincipal AppPrincipal me,
+                @RequestParam(required = false) Long folder,
                 @RequestParam(defaultValue = "0") int page, Model model) {
-        model.addAttribute("photoPage", photoService.list(me, page, 24));
+        List<FolderResponse> folders = folderService.list(me);
+        FolderResponse current = null;
+        if (folder != null) {
+            current = folders.stream().filter(f -> f.id().equals(folder)).findFirst()
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "폴더를 찾을 수 없습니다."));
+        }
+        model.addAttribute("folders", folders);
+        model.addAttribute("currentFolder", current);
+        model.addAttribute("uploadFolders", folders.stream().filter(FolderResponse::canEdit).toList());
+        model.addAttribute("photoPage", photoService.list(me, folder, page, 24));
         long maxBytes = props.upload().maxFileSize().toBytes();
         model.addAttribute("maxFileBytes", maxBytes);
         model.addAttribute("maxFileMb", maxBytes / (1024 * 1024));
@@ -62,8 +78,8 @@ public class AlbumController {
     UploadResult uploadAjax(@AuthenticationPrincipal AppPrincipal me,
                             @RequestParam("files") List<MultipartFile> files,
                             @RequestParam(required = false) String description,
-                            @RequestParam(defaultValue = "FAMILY") Visibility visibility) {
-        return uploadService.uploadAll(me, files, description, visibility);
+                            @RequestParam Long folderId) {
+        return uploadService.uploadAll(me, files, description, folderId);
     }
 
     /** JS 비활성 환경용 폴백: 일반 폼 전송 후 리다이렉트 */
@@ -71,35 +87,36 @@ public class AlbumController {
     String upload(@AuthenticationPrincipal AppPrincipal me,
                   @RequestParam("files") List<MultipartFile> files,
                   @RequestParam(required = false) String description,
-                  @RequestParam(defaultValue = "FAMILY") Visibility visibility,
+                  @RequestParam Long folderId,
                   RedirectAttributes ra) {
         try {
-            UploadResult r = uploadService.uploadAll(me, files, description, visibility);
+            UploadResult r = uploadService.uploadAll(me, files, description, folderId);
             if (!r.uploaded().isEmpty()) {
                 ra.addFlashAttribute("message", r.uploaded().size() + "장을 올렸어요.");
             }
             if (!r.failed().isEmpty()) {
                 String names = r.failed().stream().limit(3)
                         .map(f -> f.filename() + " (" + f.reason() + ")")
-                        .collect(java.util.stream.Collectors.joining(", "));
+                        .collect(Collectors.joining(", "));
                 String more = r.failed().size() > 3 ? " 외 " + (r.failed().size() - 3) + "장" : "";
                 ra.addFlashAttribute("error", r.failed().size() + "장은 올리지 못했어요: " + names + more);
             }
         } catch (ApiException e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/photos";
+        return "redirect:/photos?folder=" + folderId;
     }
 
     @PostMapping("/photos/{id}/delete")
-    String delete(@AuthenticationPrincipal AppPrincipal me, @PathVariable Long id, RedirectAttributes ra) {
+    String delete(@AuthenticationPrincipal AppPrincipal me, @PathVariable Long id,
+                  @RequestParam(required = false) Long folder, RedirectAttributes ra) {
         try {
             photoService.delete(me, id);
             ra.addFlashAttribute("message", "사진을 삭제했어요.");
         } catch (ApiException e) {
             ra.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/photos";
+        return folder != null ? "redirect:/photos?folder=" + folder : "redirect:/photos";
     }
 
     @GetMapping("/photos/{id}/file")

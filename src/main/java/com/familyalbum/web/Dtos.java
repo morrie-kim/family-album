@@ -1,6 +1,7 @@
 package com.familyalbum.web;
 
-import com.familyalbum.domain.Visibility;
+import com.familyalbum.domain.AccessLevel;
+import com.familyalbum.domain.Permission;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -34,27 +35,49 @@ public final class Dtos {
     @Schema(description = "로그인한 사용자 정보")
     public record MeResponse(Long id, String name, String email, Long familyId) {}
 
-    public record MemberResponse(Long id, String name, String email) {}
+    @Schema(description = "가족 구성원. role: ADMIN(가족 관리자) / MEMBER")
+    public record MemberResponse(Long id, String name, String email, String role) {}
 
     @Schema(description = "가족 정보와 구성원")
     public record FamilyResponse(Long id, String name,
                                  @Schema(description = "가족 합류용 초대 코드") String inviteCode,
                                  List<MemberResponse> members) {}
 
+    @Schema(description = "내가 접근할 수 있는 폴더. permission: VIEW/EDIT/MANAGE")
+    public record FolderResponse(Long id, String name, boolean defaultFolder, Permission permission, long photoCount) {
+        @JsonIgnore @Schema(hidden = true)
+        public boolean canEdit() { return permission.atLeast(Permission.EDIT); }
+        @JsonIgnore @Schema(hidden = true)
+        public boolean canManage() { return permission.atLeast(Permission.MANAGE); }
+    }
+
+    @Schema(description = "폴더 설정 화면용: 구성원별 현재 권한")
+    public record MemberAccess(Long userId, String name, String email,
+                               @Schema(description = "NONE / VIEW / EDIT / MANAGE(관리자·폴더 생성자, 변경 불가)") String level,
+                               @Schema(description = "관리자·폴더 생성자라 항상 모든 권한을 갖는지 여부") boolean implicit,
+                               String implicitReason) {}
+
+    public record FolderDetail(Long id, String name, boolean defaultFolder, List<MemberAccess> members) {}
+
+    @Schema(description = "계정별 폴더 권한 부여. 목록에 없는 구성원은 접근 불가(NONE)")
+    public record AccessGrant(Long userId, AccessLevel level) {}
+
+    public record FolderRequest(
+            @Schema(description = "폴더 이름", example = "제주 여행")
+            @NotBlank(message = "폴더 이름을 입력해 주세요.")
+            @Size(max = 100, message = "폴더 이름은 100자 이하여야 합니다.") String name,
+            List<AccessGrant> access) {}
+
     @Schema(description = "사진 메타데이터")
-    public record PhotoResponse(Long id, String originalFilename, String description, Visibility visibility,
+    public record PhotoResponse(Long id, String originalFilename, String description,
+                                Long folderId, String folderName,
                                 @Schema(description = "파일 크기(bytes)") long size,
                                 Long uploaderId, String uploaderName, Instant createdAt,
-                                @Schema(description = "내가 올린 사진인지 여부") boolean mine) {
-        @JsonIgnore
-        @Schema(hidden = true)
+                                @Schema(description = "내가 올린 사진인지 여부") boolean mine,
+                                @Schema(description = "내가 삭제할 수 있는지 여부") boolean canDelete) {
+        @JsonIgnore @Schema(hidden = true)
         public LocalDateTime createdLocal() {
             return LocalDateTime.ofInstant(createdAt, ZoneId.of("Asia/Seoul"));
-        }
-        @JsonIgnore
-        @Schema(hidden = true)
-        public boolean isPrivate() {
-            return visibility == Visibility.PRIVATE;
         }
     }
 
@@ -68,4 +91,10 @@ public final class Dtos {
 
     @Schema(description = "다중 업로드 결과. 일부 파일이 실패해도 성공한 파일은 저장된다(파일별 독립 처리).")
     public record UploadResult(List<PhotoResponse> uploaded, List<UploadFailure> failed) {}
+
+    @Schema(description = "구글 포토 가져오기 결과")
+    public record GoogleImportResult(int imported, int skipped, List<UploadFailure> failed) {}
+
+    @Schema(description = "구글 포토 사진 선택 세션")
+    public record GoogleSession(String sessionId, String pickerUri, long pollIntervalMs, long timeoutMs) {}
 }

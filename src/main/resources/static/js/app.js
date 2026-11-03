@@ -6,6 +6,12 @@
   const csrfToken = $('meta[name="_csrf"]')?.content;
   const csrfHeader = $('meta[name="_csrf_header"]')?.content;
 
+  /* ── data-confirm 폼: 제출 전 확인 ─────────── */
+  document.addEventListener('submit', e => {
+    const msg = e.target?.dataset?.confirm;
+    if (msg && !window.confirm(msg)) e.preventDefault();
+  });
+
   /* ── 토스트 자동 닫힘 ─────────────────────── */
   $$('.toast').forEach(t => setTimeout(() => t.classList.add('hide'), 4500));
 
@@ -43,7 +49,7 @@
   const tiles = $$('.tile');
   if (viewer && tiles.length) {
     const img = $('#viewerImg'), count = $('#viewerCount'), by = $('#viewerBy'), when = $('#viewerWhen');
-    const desc = $('#viewerDesc'), lock = $('#viewerLock'), del = $('#deleteForm');
+    const desc = $('#viewerDesc'), folderTag = $('#viewerFolder'), del = $('#deleteForm');
     const ask = $('#deleteAsk'), cancel = $('#deleteCancel'), go = $('#deleteGo'), confirmText = $('#confirmText');
     let idx = 0;
 
@@ -57,8 +63,8 @@
       img.src = t.src; img.alt = t.name || '';
       by.textContent = t.uploader; when.textContent = t.date;
       desc.textContent = t.desc || ''; desc.hidden = !t.desc;
-      lock.hidden = t.private !== 'true';
-      del.hidden = t.mine !== 'true';
+      folderTag.textContent = t.folder || '';
+      del.hidden = t.canDelete !== 'true';
       del.action = t.deleteUrl;
       count.textContent = `${idx + 1} / ${tiles.length}`;
       resetConfirm();
@@ -81,6 +87,80 @@
       if (Math.abs(dx) > 60) show(idx + (dx < 0 ? 1 : -1));
     });
     viewer.addEventListener('close', () => { img.removeAttribute('src'); });
+  }
+
+  /* ── 구글 포토 가져오기 (Picker API) ─────── */
+  const gImport = $('#googleImport');
+  if (gImport) {
+    const base = gImport.dataset.base;
+    const startBtn = $('#gStart'), folderSel = $('#gFolder'), statusEl = $('#gStatus'), resultEl = $('#gResult');
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const headers = () => ({ 'X-Requested-With': 'XMLHttpRequest', ...(csrfHeader ? { [csrfHeader]: csrfToken } : {}) });
+    const setStatus = msg => { statusEl.hidden = !msg; statusEl.textContent = msg || ''; };
+    const fail = async res => { throw new Error((await res.text()) || '요청에 실패했어요.'); };
+
+    startBtn?.addEventListener('click', async () => {
+      if (startBtn.disabled) return;
+      startBtn.disabled = true; resultEl.hidden = true; resultEl.replaceChildren();
+      // 팝업 차단을 피하려고 클릭 직후 동기적으로 창을 열고, 세션이 만들어지면 주소를 지정한다.
+      const win = window.open('', '_blank');
+      const folderId = encodeURIComponent(folderSel.value);
+      try {
+        setStatus('구글 포토 선택 창을 준비하고 있어요…');
+        let res = await fetch(`${base}/picker/sessions?folderId=${folderId}`, { method: 'POST', headers: headers() });
+        if (!res.ok) await fail(res);
+        const s = await res.json();
+        if (win) win.location.href = s.pickerUri; else window.open(s.pickerUri, '_blank');
+
+        setStatus('열린 창에서 사진을 고르고 “완료”를 눌러 주세요. 완료하면 이 화면이 자동으로 이어져요.');
+        const deadline = Date.now() + (s.timeoutMs || 600000);
+        let ready = false;
+        while (Date.now() < deadline) {
+          await sleep(Math.max(2000, s.pollIntervalMs || 5000));
+          res = await fetch(`${base}/picker/sessions/${encodeURIComponent(s.sessionId)}`, { headers: headers() });
+          if (!res.ok) await fail(res);
+          if ((await res.json()).ready) { ready = true; break; }
+        }
+        if (!ready) throw new Error('시간이 초과됐어요. 다시 시도해 주세요.');
+
+        setStatus('사진을 가져오는 중이에요… (장수에 따라 시간이 걸려요)');
+        res = await fetch(`${base}/picker/sessions/${encodeURIComponent(s.sessionId)}/import?folderId=${folderId}`,
+          { method: 'POST', headers: headers() });
+        if (!res.ok) await fail(res);
+        showImportResult(await res.json(), folderSel.value);
+        setStatus('');
+      } catch (err) {
+        try { win?.close(); } catch { /* ignore */ }
+        setStatus('');
+        resultEl.replaceChildren();
+        const p = document.createElement('p');
+        p.className = 'alert error'; p.textContent = err.message || '가져오지 못했어요.';
+        resultEl.append(p); resultEl.hidden = false;
+      } finally {
+        startBtn.disabled = false;
+      }
+    });
+
+    function showImportResult(r, folderId) {
+      resultEl.replaceChildren();
+      const head = document.createElement('p');
+      head.className = r.failed.length ? 'alert error' : 'alert info';
+      head.textContent = `${r.imported}장을 가져왔어요.` + (r.skipped ? ` 이미 가져온 ${r.skipped}장은 건너뛰었어요.` : '')
+        + (r.failed.length ? ` ${r.failed.length}장은 가져오지 못했어요.` : '');
+      resultEl.append(head);
+      if (r.failed.length) {
+        const ul = document.createElement('ul');
+        r.failed.slice(0, 8).forEach(f => { const li = document.createElement('li'); li.textContent = `${f.filename} — ${f.reason}`; ul.append(li); });
+        resultEl.append(ul);
+      }
+      if (r.imported) {
+        const a = document.createElement('a');
+        a.className = 'btn secondary sm'; a.href = `${base.replace(/\/google$/, '')}/photos?folder=${encodeURIComponent(folderId)}`;
+        a.textContent = '폴더에서 보기'; a.style.marginTop = '8px';
+        resultEl.append(a);
+      }
+      resultEl.hidden = false;
+    }
   }
 
   /* ── 다중 업로드 시트 ─────────────────────── */
@@ -179,11 +259,11 @@
   }
 
   /** 한 배치를 XHR 로 전송(업로드 진행률 이벤트 필요). 항상 resolve. */
-  function postBatch(batch, visibility, description, onProgress) {
+  function postBatch(batch, folderId, description, onProgress) {
     return new Promise(resolve => {
       const fd = new FormData();
       batch.forEach(b => fd.append('files', b.file, b.file.name));
-      fd.append('visibility', visibility);
+      fd.append('folderId', folderId);
       if (description) fd.append('description', description);
 
       const xhr = new XMLHttpRequest();
@@ -210,7 +290,7 @@
 
   async function upload() {
     busy = true;
-    const visibility = form.elements['visibility'].value;
+    const folderId = form.elements['folderId'].value;
     const description = form.elements['description'].value.trim();
     result.hidden = true; showNotice([]);
     progress.hidden = false; pLabel.textContent = '업로드 중…'; setProgress(0);
@@ -225,7 +305,7 @@
       batch.forEach(b => (b.state = 'uploading')); render();
       const batchBytes = batch.reduce((s, b) => s + b.file.size, 0);
 
-      const res = await postBatch(batch, visibility, description, loaded => setProgress((sent + loaded) / bytesTotal));
+      const res = await postBatch(batch, folderId, description, loaded => setProgress((sent + loaded) / bytesTotal));
       sent += batchBytes; setProgress(sent / bytesTotal);
 
       if (!res.ok) {

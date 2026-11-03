@@ -1,5 +1,7 @@
 server:
   port: 8080
+  # ngrok 등 리버스 프록시 뒤에서 X-Forwarded-* 를 신뢰해 https 리다이렉트/URL 생성이 올바르게 동작
+  forward-headers-strategy: framework
   tomcat:
     # 한 요청의 multipart 파트 수 상한(파일 N장 + 텍스트 필드 + CSRF). Tomcat 기본값은 10 → 다중 업로드 시 반드시 상향
     max-part-count: 100
@@ -36,6 +38,15 @@ app:
   upload:
     max-files-per-request: 50
     max-file-size: 20MB
+  # 외부에서 접근하는 공개 주소(ngrok URL). 구글 OAuth redirect URI = {public-base-url}/google/callback
+  public-base-url: ${APP_BASE_URL:http://localhost:8080}
+  signup:
+    allow-new-family: ${ALLOW_NEW_FAMILY:true}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
+    client-secret: ${GOOGLE_CLIENT_SECRET:}
+    token-key: ${GOOGLE_TOKEN_KEY:}   # base64 32바이트: openssl rand -base64 32
+    max-pick-items: 50
 
 # API 문서(Swagger UI): 기본 활성(dev). 운영은 application-prod.yml 에서 비활성화.
 springdoc:

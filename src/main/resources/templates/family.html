@@ -29,7 +29,7 @@
         <ul class="members">
             <li th:each="m : ${family.members()}">
                 <span class="avatar" th:text="${#strings.substring(m.name(), 0, 1)}">김</span>
-                <span><strong th:text="${m.name()}">이름</strong><span class="caption" th:text="${m.email()}">email</span></span>
+                <span><strong><span th:text="${m.name()}">이름</span><span class="badge-role" th:if="${m.role() == 'ADMIN'}">관리자</span></strong><span class="caption" th:text="${m.email()}">email</span></span>
             </li>
         </ul>
     </section>

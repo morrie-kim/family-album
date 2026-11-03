@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('구글 포토 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'google')}"></header>
+
+<main class="container" style="max-width:720px">
+    <section class="page-head">
+        <div>
+            <h1>구글 포토</h1>
+            <p class="caption">내 구글 포토에서 사진을 골라 가족 폴더로 가져와요.</p>
+        </div>
+    </section>
+
+    <!-- 서버에 구글 클라이언트가 설정되지 않은 경우 -->
+    <section class="card" th:unless="${enabled}">
+        <h2>구글 연동이 아직 설정되지 않았어요</h2>
+        <p class="caption">서버 관리자가 구글 클라우드 콘솔에서 OAuth 클라이언트를 만들고
+            <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_TOKEN_KEY</code> 를 설정해야 해요.
+            승인된 리디렉션 URI:</p>
+        <p style="margin-top:8px"><code class="code-inline" th:text="${redirectUri}">https://example.ngrok-free.app/google/callback</code></p>
+    </section>
+
+    <!-- 연결 전 -->
+    <section class="card" th:if="${enabled and !connected}">
+        <h2>내 구글 계정 연결</h2>
+        <p class="caption">구글 포토 정책상 앱은 내 전체 라이브러리를 읽을 수 없어요.
+            연결 후 <strong>내가 직접 고른 사진만</strong> 가져오며, 언제든 연결을 해제할 수 있어요.</p>
+        <div style="margin-top:16px">
+            <a class="btn primary" th:href="@{/google/connect}"><svg class="icon"><use href="#i-cloud"/></svg>구글 계정 연결</a>
+        </div>
+    </section>
+
+    <!-- 연결 후: 가져오기 -->
+    <section class="card" id="googleImport" th:if="${enabled and connected}" th:data-base="@{/google}">
+        <h2>사진 가져오기</h2>
+        <p class="caption">가져올 폴더를 고르고, 구글 포토 창에서 사진을 선택하세요. 한 번에 최대 50장까지 가져와요.</p>
+
+        <div th:if="${uploadFolders.isEmpty()}" class="alert error" style="margin-top:16px">
+            사진을 올릴 수 있는 폴더가 없어요. 폴더 관리자에게 “올리기” 권한을 요청하세요.
+        </div>
+
+        <div class="stack" style="margin-top:16px" th:unless="${uploadFolders.isEmpty()}">
+            <label class="field"><span>가져올 폴더</span>
+                <select id="gFolder">
+                    <option th:each="f : ${uploadFolders}" th:value="${f.id()}" th:text="${f.name()}">가족 앨범</option>
+                </select>
+            </label>
+            <button type="button" class="btn primary" id="gStart"><svg class="icon"><use href="#i-cloud"/></svg>구글 포토에서 사진 고르기</button>
+            <p class="alert info" id="gStatus" role="status" aria-live="polite" hidden></p>
+            <div class="result" id="gResult" role="status" aria-live="polite" hidden></div>
+        </div>
+    </section>
+
+    <section class="card" th:if="${enabled and connected}">
+        <h2>연결 관리</h2>
+        <p class="caption">연결을 해제하면 저장된 인증 정보가 삭제되고 구글 쪽 권한도 폐기돼요. 이미 가져온 사진은 그대로 남아요.</p>
+        <form th:action="@{/google/disconnect}" method="post" data-confirm="구글 포토 연결을 해제할까요?" style="margin-top:12px">
+            <button type="submit" class="btn ghost danger-text">연결 해제</button>
+        </form>
+    </section>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('google')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

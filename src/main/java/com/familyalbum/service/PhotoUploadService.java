@@ -1,7 +1,7 @@
 package com.familyalbum.service;
 
 import com.familyalbum.config.AppProperties;
-import com.familyalbum.domain.Visibility;
+import com.familyalbum.domain.Permission;
 import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.web.ApiException;
 import com.familyalbum.web.Dtos.PhotoResponse;
@@ -26,14 +26,16 @@ public class PhotoUploadService {
     private static final Logger log = LoggerFactory.getLogger(PhotoUploadService.class);
 
     private final PhotoService photoService;
+    private final FolderAccessService access;
     private final AppProperties props;
 
-    public PhotoUploadService(PhotoService photoService, AppProperties props) {
+    public PhotoUploadService(PhotoService photoService, FolderAccessService access, AppProperties props) {
         this.photoService = photoService;
+        this.access = access;
         this.props = props;
     }
 
-    public UploadResult uploadAll(AppPrincipal me, List<MultipartFile> files, String description, Visibility visibility) {
+    public UploadResult uploadAll(AppPrincipal me, List<MultipartFile> files, String description, Long folderId) {
         List<MultipartFile> targets = files == null ? List.of()
                 : files.stream().filter(f -> f != null && !f.isEmpty()).toList();
         if (targets.isEmpty()) {
@@ -46,13 +48,15 @@ public class PhotoUploadService {
         if (description != null && description.length() > 500) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "설명은 500자 이하여야 합니다.");
         }
+        // 폴더 권한은 한 번 먼저 확인해 권한이 없으면 파일 처리 없이 즉시 거절(404/403)
+        access.requireFolder(me, folderId, Permission.EDIT);
 
         List<PhotoResponse> uploaded = new ArrayList<>();
         List<UploadFailure> failed = new ArrayList<>();
         for (MultipartFile file : targets) {
             String name = file.getOriginalFilename() == null ? "(이름 없음)" : file.getOriginalFilename();
             try {
-                uploaded.add(photoService.upload(me, file, description, visibility));
+                uploaded.add(photoService.upload(me, file, description, folderId));
             } catch (ApiException e) {
                 failed.add(new UploadFailure(name, e.getMessage()));
             } catch (RuntimeException e) {

@@ -27,7 +27,7 @@ public class FamilyService {
         Family f = families.findById(me.familyId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "가족 정보를 찾을 수 없습니다."));
         var members = users.findByFamilyIdOrderByIdAsc(f.getId()).stream()
-                .map(u -> new MemberResponse(u.getId(), u.getName(), u.getEmail()))
+                .map(u -> new MemberResponse(u.getId(), u.getName(), u.getEmail(), u.getFamilyRole().name()))
                 .toList();
         return new FamilyResponse(f.getId(), f.getName(), f.getInviteCode(), members);
     }

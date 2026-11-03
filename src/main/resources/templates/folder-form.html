@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('폴더 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'photos')}"></header>
+
+<main class="container" style="max-width:720px">
+    <section class="page-head">
+        <div>
+            <h1 th:text="${folder.id() == null} ? '새 폴더' : '폴더 설정'">폴더 설정</h1>
+            <p class="caption">가족 계정별로 이 폴더를 볼 수 있는지, 사진을 올릴 수 있는지 정해요.</p>
+        </div>
+    </section>
+
+    <p class="alert error" role="alert" th:if="${error}" th:text="${error}" style="margin-bottom:16px"></p>
+
+    <form th:action="${folder.id() == null} ? @{/folders} : @{/folders/{id}(id=${folder.id()})}" method="post" class="stack">
+        <label class="field"><span>폴더 이름</span>
+            <input type="text" name="name" th:value="${folder.name()}" maxlength="100" placeholder="예: 제주 여행" required autofocus></label>
+
+        <section class="card">
+            <h2>접근 권한</h2>
+            <p class="caption">선택하지 않은 계정은 이 폴더가 보이지 않아요.</p>
+            <ul class="access-list">
+                <li th:each="m : ${folder.members()}">
+                    <span class="avatar" th:text="${#strings.substring(m.name(), 0, 1)}">김</span>
+                    <span class="who-col"><strong th:text="${m.name()}">이름</strong><span class="caption" th:text="${m.email()}">email</span></span>
+
+                    <span class="caption fixed" th:if="${m.implicit()}" th:text="${m.implicitReason()} + ' · 모든 권한'">가족 관리자 · 모든 권한</span>
+
+                    <div class="seg sm" role="radiogroup" th:unless="${m.implicit()}" th:attr="aria-label=${m.name()} + ' 권한'">
+                        <label><input type="radio" th:name="|access_${m.userId()}|" value="NONE" th:checked="${m.level() == 'NONE'}"><span>접근 없음</span></label>
+                        <label><input type="radio" th:name="|access_${m.userId()}|" value="VIEW" th:checked="${m.level() == 'VIEW'}"><span>보기</span></label>
+                        <label><input type="radio" th:name="|access_${m.userId()}|" value="EDIT" th:checked="${m.level() == 'EDIT'}"><span>올리기</span></label>
+                    </div>
+                </li>
+            </ul>
+            <p class="caption" style="margin-top:12px">보기 = 사진 열람 · 올리기 = 사진 업로드와 내가 올린 사진 삭제까지</p>
+        </section>
+
+        <div class="form-actions">
+            <a class="btn secondary" th:href="@{/photos(folder=${folder.id()})}">취소</a>
+            <button type="submit" class="btn primary" th:text="${folder.id() == null} ? '폴더 만들기' : '저장'">저장</button>
+        </div>
+    </form>
+
+    <form th:if="${folder.id() != null and !folder.defaultFolder()}" th:action="@{/folders/{id}/delete(id=${folder.id()})}"
+          method="post" data-confirm="이 폴더를 삭제할까요? 사진이 남아 있으면 삭제되지 않아요." style="margin-top:32px">
+        <button type="submit" class="btn ghost danger-text"><svg class="icon"><use href="#i-trash"/></svg>폴더 삭제</button>
+    </form>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('photos')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>
