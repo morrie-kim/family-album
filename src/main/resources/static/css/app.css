@@ -348,3 +348,96 @@ select:focus { outline: none; border-color: var(--blue); background-color: var(-
 .badge-role { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 12px; font-weight: 600; vertical-align: middle; }
 .folder-tag { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 12px; font-weight: 600; }
 code, .code-inline { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 14px; background: var(--g100); padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+
+/* ── Textarea ──────────────────────────────── */
+textarea {
+  width: 100%; resize: vertical; background: var(--input-bg); border: 1.5px solid transparent; border-radius: 10px;
+  padding: 14px 16px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--g900);
+  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+textarea::placeholder { color: var(--g500); }
+textarea:focus { outline: none; border-color: var(--blue); background: var(--surface); }
+
+/* ── 월드컵: 목록 ───────────────────────────── */
+.wc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.wc-card { display: grid; gap: 8px; align-content: start; color: var(--g900); transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.wc-card + .wc-card { margin-top: 0; }
+.wc-card:hover { transform: translateY(-2px); box-shadow: var(--sh3); }
+.wc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wc-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--blue-soft); color: var(--blue); }
+.wc-title { font-size: 18px; font-weight: 600; line-height: 1.4; word-break: keep-all; }
+
+/* ── 월드컵: 후보 썸네일 ────────────────────── */
+.wc-thumb { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--g100); display: grid; place-items: center; }
+.wc-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wc-thumb .wc-text { padding: 8px; text-align: center; font-weight: 600; font-size: 15px; line-height: 1.3; word-break: keep-all; color: var(--g800); }
+.wc-entries { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+.wc-entries li { display: grid; gap: 6px; min-width: 0; }
+.wc-entries .caption { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-entries.sm { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+.detail-links { display: flex; gap: 8px; margin-top: 16px; }
+
+/* ── 월드컵: 만들기(사진 선택) ──────────────── */
+.pick-tools { display: flex; gap: 8px; margin: 16px 0 12px; }
+.pick-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.pick { position: relative; display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; cursor: pointer; background: var(--g100); }
+.pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pick img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform var(--fast) var(--ease), opacity var(--fast) var(--ease); }
+.pick .mark {
+  position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: rgba(0,0,0,.35); border: 1.5px solid rgba(255,255,255,.9); color: transparent; transition: all var(--fast) var(--ease);
+}
+.pick .mark .icon { width: 14px; height: 14px; stroke-width: 2.2; }
+.pick input:checked ~ img { transform: scale(1.06); }
+.pick input:checked ~ .mark { background: var(--blue); border-color: var(--blue); color: #fff; }
+.pick:has(input:checked) { outline: 3px solid var(--blue); outline-offset: -3px; }
+.pick input:focus-visible ~ img { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+/* ── 월드컵: 진행(대진) ─────────────────────── */
+.round-label { font-weight: 700; color: var(--blue); }
+.match { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: stretch; margin-top: 8px; }
+.choice-form { margin: 0; display: flex; }
+.choice {
+  width: 100%; display: flex; flex-direction: column; padding: 0; border: 0; border-radius: 20px; overflow: hidden;
+  background: var(--surface); box-shadow: var(--sh2); text-align: center; color: var(--g900);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.choice:hover { transform: translateY(-4px); box-shadow: var(--sh3); }
+.choice:active { transform: scale(.98); }
+.choice .media { display: block; aspect-ratio: 4 / 5; background: var(--g100); }
+.choice .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.choice .text-only { flex: 1; min-height: 240px; display: grid; place-items: center; padding: 24px 16px; font-size: 26px; font-weight: 700; line-height: 1.3; word-break: keep-all; }
+.choice .name { display: block; padding: 12px 12px 14px; font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.versus {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; width: 48px; height: 48px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--g900); color: var(--surface); font-weight: 700; font-size: 14px; box-shadow: var(--sh3);
+}
+
+/* ── 월드컵: 결과 ───────────────────────────── */
+.champion { display: grid; justify-items: center; gap: 12px; text-align: center; padding: 32px 24px; }
+.champion .card { box-shadow: none; }
+.champ-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-weight: 700; }
+.champ-media { width: min(280px, 100%); }
+.champ-media .wc-thumb { border-radius: 20px; box-shadow: var(--sh3); aspect-ratio: 4 / 5; }
+.champ-media .wc-text { font-size: 28px; }
+.champ-name { font-size: 24px; font-weight: 700; word-break: keep-all; }
+.runner { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.runner .wc-thumb { width: 88px; flex: none; }
+.rank-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; }
+.rank-list li { display: grid; grid-template-columns: 32px 56px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.rank-list li:first-child { border-top: 0; }
+.rank-list .wc-thumb { width: 56px; border-radius: 10px; }
+.rank-list .wc-text { font-size: 11px; padding: 4px; }
+.rank { text-align: center; font-weight: 700; color: var(--g500); }
+.rank.top { color: var(--blue); }
+.rank-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-stats { text-align: right; white-space: nowrap; }
+.rank-stats strong { color: var(--g900); }
+@media (max-width: 639px) {
+  .choice .text-only { min-height: 160px; font-size: 20px; padding: 16px 10px; }
+  .choice { border-radius: 16px; }
+  .versus { width: 40px; height: 40px; font-size: 12px; }
+  .rank-list li { grid-template-columns: 24px 48px 1fr; }
+  .rank-list .wc-thumb { width: 48px; }
+  .rank-stats { grid-column: 3; text-align: left; }
+}

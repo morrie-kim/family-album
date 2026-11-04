@@ -89,6 +89,40 @@
     viewer.addEventListener('close', () => { img.removeAttribute('src'); });
   }
 
+  /* ── 월드컵 만들기: 후보 종류 전환, 선택 개수 검증 ─ */
+  const wcNew = $('#wcNew');
+  if (wcNew) {
+    const base = wcNew.dataset.base;
+    const titleInput = $('input[name="title"]', wcNew);
+    const counter = $('#wcCount'), submit = $('#wcSubmit');
+    const goto = (mode, folder) => {
+      const q = new URLSearchParams({ mode, title: titleInput.value });
+      if (folder) q.set('folder', folder);
+      location.href = `${base}/new?${q.toString()}`; // 입력한 주제는 유지
+    };
+    $$('input[data-kind]', wcNew).forEach(r => r.addEventListener('change', () => goto(r.value)));
+    $('#wcFolder')?.addEventListener('change', e => goto('photo', e.target.value));
+
+    const MIN = 4, MAX = 64;
+    const boxes = $$('input[name="photoIds"]', wcNew);
+    const labels = $('#wcLabels');
+    const update = () => {
+      let n = 0;
+      if (labels) {
+        n = new Set(labels.value.split(/\r?\n/).map(s => s.trim().toLowerCase()).filter(Boolean)).size;
+      } else {
+        n = boxes.filter(b => b.checked).length;
+      }
+      counter.textContent = n;
+      submit.disabled = n < MIN || n > MAX;
+    };
+    labels?.addEventListener('input', update);
+    boxes.forEach(b => b.addEventListener('change', update));
+    $('#wcSelectAll')?.addEventListener('click', () => { boxes.forEach((b, i) => { b.checked = i < MAX; }); update(); });
+    $('#wcClear')?.addEventListener('click', () => { boxes.forEach(b => { b.checked = false; }); update(); });
+    update();
+  }
+
   /* ── 구글 포토 가져오기 (Picker API) ─────── */
   const gImport = $('#googleImport');
   if (gImport) {

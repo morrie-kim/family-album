@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${match.title()} + ' · 월드컵')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'worldcup')}"></header>
+
+<main class="container" style="max-width:860px">
+    <section class="page-head" style="margin-bottom:16px">
+        <div>
+            <h1 th:text="${match.title()}">주제</h1>
+            <p class="caption">
+                <strong class="round-label" th:text="${match.roundLabel()}">16강</strong> ·
+                <span class="num" th:text="${match.matchNo()} + ' / ' + ${match.matchTotal()}">1 / 8</span>
+            </p>
+        </div>
+        <a class="btn ghost" th:href="@{/worldcups/{id}(id=${match.worldcupId()})}">그만하기</a>
+    </section>
+
+    <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="100" th:attr="aria-valuenow=${match.progressPercent()}">
+        <div class="bar" th:style="|width:${match.progressPercent()}%|"></div>
+    </div>
+
+    <p class="caption" style="text-align:center;margin:24px 0 12px">마음에 드는 쪽을 눌러 주세요</p>
+
+    <section class="match">
+        <form th:replace="~{fragments :: wcChoice(${match.a()}, @{/worldcups/{id}/plays/{pid}/pick(id=${match.worldcupId()}, pid=${match.playId()})})}"></form>
+        <span class="versus" aria-hidden="true">VS</span>
+        <form th:replace="~{fragments :: wcChoice(${match.b()}, @{/worldcups/{id}/plays/{pid}/pick(id=${match.worldcupId()}, pid=${match.playId()})})}"></form>
+    </section>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('worldcup')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${ranking.title()} + ' 결과 · 월드컵')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'worldcup')}"></header>
+
+<main class="container" style="max-width:860px">
+    <section class="page-head">
+        <div>
+            <h1 th:text="${ranking.title()}">주제</h1>
+            <p class="caption" th:text="${result != null} ? '내 결과와 가족 전체 랭킹' : '가족 전체 랭킹'">가족 전체 랭킹</p>
+        </div>
+        <a class="btn primary" th:href="@{/worldcups/{id}(id=${ranking.worldcupId()})}">다시 도전</a>
+    </section>
+
+    <!-- 내 결과 -->
+    <th:block th:if="${result != null}">
+        <section class="champion card">
+            <span class="champ-badge"><svg class="icon"><use href="#i-trophy"/></svg>우승</span>
+            <div class="champ-media" th:replace="~{fragments :: wcThumb(${result.champion()})}"></div>
+            <strong class="champ-name" th:text="${result.champion().displayName()}">우승자</strong>
+            <p class="caption"><span class="num" th:text="${result.startSize()}">16</span>강 우승</p>
+        </section>
+
+        <section class="card">
+            <h2>준우승</h2>
+            <div class="runner">
+                <div th:replace="~{fragments :: wcThumb(${result.runnerUp()})}"></div>
+                <strong th:text="${result.runnerUp().displayName()}">준우승</strong>
+            </div>
+        </section>
+
+        <section class="card" th:each="g : ${result.eliminated()}">
+            <h2 th:text="${g.label()}">4강 탈락</h2>
+            <ul class="wc-entries sm">
+                <li th:each="e : ${g.entries()}"><div th:replace="~{fragments :: wcThumb(${e})}"></div></li>
+            </ul>
+        </section>
+    </th:block>
+
+    <!-- 가족 전체 랭킹 -->
+    <section class="card">
+        <h2>가족 전체 랭킹</h2>
+        <p class="caption"><span class="num" th:text="${ranking.playCount()}">0</span>번의 플레이를 합산했어요. 우승 횟수 → 승률 순이에요.</p>
+        <p class="caption" th:if="${ranking.playCount() == 0}" style="margin-top:12px">아직 완료된 플레이가 없어요.</p>
+        <ol class="rank-list" th:unless="${ranking.playCount() == 0}">
+            <li th:each="r : ${ranking.rows()}">
+                <span class="rank num" th:classappend="${r.rank() <= 3} ? 'top'" th:text="${r.rank()}">1</span>
+                <div th:replace="~{fragments :: wcThumb(${r.entry()})}"></div>
+                <span class="rank-name" th:if="${r.entry().hasPhoto()}" th:text="${r.entry().displayName()}"></span>
+                <span class="rank-stats caption num">
+                    우승 <strong th:text="${r.champions()}">0</strong> ·
+                    승률 <strong th:text="${r.winRatePercent()} + '%'">0%</strong>
+                    <span th:text="'(' + ${r.wins()} + '/' + ${r.appearances()} + ')'"></span>
+                </span>
+            </li>
+        </ol>
+    </section>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('worldcup')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

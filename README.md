@@ -68,7 +68,22 @@ cp .env.example .env        # NGROK_DOMAIN, GOOGLE_* 채우기
 - 설정: `app.upload.max-files-per-request`(50), `app.upload.max-file-size`(20MB), `server.tomcat.max-part-count: 100` (Tomcat 기본 10 → 반드시 상향)
 - 리버스 프록시 뒤라면 본문 크기 한도(`client_max_body_size` 등)도 확인
 
-## 5. API 문서 (Swagger / OpenAPI)
+## 5. 이상형 월드컵 (사이드 기능)
+상단 `월드컵` 메뉴에서 **주제를 입력**하고 후보를 등록한 뒤, 라운드를 골라 가족과 함께 우승자를 가립니다.
+
+1. **새 월드컵**: 주제 입력 + 후보 등록(4~64개)
+   - *텍스트로 입력*: 한 줄에 하나씩(공백·대소문자 중복은 자동 정리)
+   - *앨범 사진으로*: 폴더를 고르고 사진을 체크(최신 60장 중 선택, 전체 선택 지원)
+2. **시작**: 후보 수에 맞는 라운드(4/8/16/32/64강) 중 선택 → 후보를 무작위로 뽑아 대진 생성
+3. **진행**: 카드를 눌러 선택(결승까지). 서버가 진행 상태를 보관하므로 중간에 나가도 이어서 할 수 있고, 더블 클릭으로 대진을 건너뛸 수 없습니다.
+4. **결과**: 내 우승/준우승/라운드별 탈락 + **가족 전체 랭킹**(우승 횟수 → 승률 → 승수, 동률은 같은 순위)
+
+- **접근 제어**: 텍스트 월드컵은 가족 전체, **사진 월드컵은 선택한 폴더를 볼 수 있는 계정만** 보이고 참여할 수 있습니다(후보 사진은 모두 그 폴더에서만 선택 가능 → 폴더 권한 우회 불가).
+- 플레이 기록은 본인만 볼 수 있고, 삭제는 만든 사람 또는 가족 관리자만 가능합니다.
+- 월드컵 후보로 쓰이는 사진은 월드컵을 삭제하기 전까지 삭제할 수 없습니다(409).
+- 토너먼트 상태 머신(`WorldcupPlay`)은 DB 없이 단위 테스트합니다(`WorldcupPlayTest`).
+
+## 6. API 문서 (Swagger / OpenAPI)
 | 환경 | Swagger UI | OpenAPI JSON |
 |---|---|---|
 | dev (기본) | http://localhost:8080/swagger-ui.html | http://localhost:8080/v3/api-docs |
@@ -87,8 +102,9 @@ com.familyalbum
  ├─ repository  Spring Data JPA
  ├─ security    AppPrincipal, AppUserDetailsService
  ├─ service     AuthService, FolderService, FolderAccessService, PhotoService, PhotoUploadService, FamilyService, FileStorage
+ ├─ worldcup    Worldcup/Entry/Play/Match, Bracket, WorldcupService, WorldcupDtos
  ├─ google      GoogleOAuthClient, GooglePickerClient, GoogleConnectionService, GoogleImportService, TokenCipher
- ├─ web         화면 컨트롤러(Album/Folder/Google/Auth), WebAdvice, Dtos
+ ├─ web         화면 컨트롤러(Album/Folder/Google/Worldcup/Auth), WebAdvice, Dtos
  └─ api         REST(Account/Folder/Photo) + ApiExceptionHandler
 ```
 

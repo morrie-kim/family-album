@@ -11,6 +11,7 @@ import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.web.ApiException;
 import com.familyalbum.web.Dtos.PageResponse;
 import com.familyalbum.web.Dtos.PhotoResponse;
+import com.familyalbum.worldcup.WorldcupEntryRepository;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,15 +49,18 @@ public class PhotoService {
     private final FolderService folderService;
     private final FileStorage storage;
     private final AppProperties props;
+    private final WorldcupEntryRepository worldcupEntries;
 
     public PhotoService(PhotoRepository photos, AppUserRepository users, FolderAccessService access,
-                        FolderService folderService, FileStorage storage, AppProperties props) {
+                        FolderService folderService, FileStorage storage, AppProperties props,
+                        WorldcupEntryRepository worldcupEntries) {
         this.photos = photos;
         this.users = users;
         this.access = access;
         this.folderService = folderService;
         this.storage = storage;
         this.props = props;
+        this.worldcupEntries = worldcupEntries;
     }
 
     @Transactional
@@ -150,6 +154,9 @@ public class PhotoService {
         Permission perm = access.resolve(me, p.getFolder());
         if (!canDelete(p, me, perm)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "이 사진을 삭제할 권한이 없습니다.");
+        }
+        if (worldcupEntries.existsByPhotoId(p.getId())) {
+            throw new ApiException(HttpStatus.CONFLICT, "월드컵 후보로 쓰이는 사진이에요. 월드컵을 먼저 삭제해 주세요.");
         }
         photos.delete(p);
         storage.delete(p.getFamily().getId(), p.getStoredFilename());

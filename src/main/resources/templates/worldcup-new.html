@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('새 월드컵 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'worldcup')}"></header>
+
+<main class="container" style="max-width:860px">
+    <section class="page-head">
+        <div>
+            <h1>새 월드컵 만들기</h1>
+            <p class="caption">주제를 입력하고 후보를 4~64개 등록하세요.</p>
+        </div>
+    </section>
+
+    <p class="alert error" role="alert" th:if="${error}" th:text="${error}" style="margin-bottom:16px"></p>
+
+    <form id="wcNew" th:action="@{/worldcups}" method="post" class="stack" th:data-base="@{/worldcups}">
+        <input type="hidden" name="mode" th:value="${mode}">
+
+        <label class="field"><span>주제</span>
+            <input type="text" name="title" th:value="${title}" maxlength="100" placeholder="예: 가장 좋았던 가족 여행지" required autofocus></label>
+
+        <div class="field">
+            <span class="label">후보 종류</span>
+            <div class="seg" role="tablist">
+                <label><input type="radio" name="kind" value="text" th:checked="${mode == 'text'}" data-kind><span>텍스트로 입력</span></label>
+                <label><input type="radio" name="kind" value="photo" th:checked="${mode == 'photo'}" data-kind><span>앨범 사진으로</span></label>
+            </div>
+        </div>
+
+        <!-- 텍스트 후보 -->
+        <label class="field" th:if="${mode == 'text'}"><span>후보 (한 줄에 하나씩)</span>
+            <textarea id="wcLabels" name="labels" rows="10" th:text="${labels}" placeholder="제주도&#10;부산&#10;강릉&#10;여수"></textarea>
+        </label>
+
+        <!-- 사진 후보 -->
+        <section class="card" th:if="${mode == 'photo'}">
+            <p class="caption" th:if="${folders.isEmpty()}">접근할 수 있는 폴더가 없어요.</p>
+            <th:block th:unless="${folders.isEmpty()}">
+                <label class="field"><span>사진을 가져올 폴더</span>
+                    <select name="folderId" id="wcFolder">
+                        <option th:each="f : ${folders}" th:value="${f.id()}" th:text="${f.name()}"
+                                th:selected="${currentFolder != null and currentFolder.id() == f.id()}">가족 앨범</option>
+                    </select>
+                </label>
+                <p class="caption" style="margin-top:8px">이 월드컵은 선택한 폴더를 볼 수 있는 가족만 참여할 수 있어요. (최신 사진 60장 중에서 고를 수 있어요)</p>
+
+                <p class="caption" th:if="${photoChoices.isEmpty()}" style="margin-top:16px">이 폴더에는 아직 사진이 없어요.</p>
+                <div th:unless="${photoChoices.isEmpty()}">
+                    <div class="pick-tools">
+                        <button type="button" class="btn secondary sm" id="wcSelectAll">전체 선택 (최대 64장)</button>
+                        <button type="button" class="btn ghost sm" id="wcClear">선택 해제</button>
+                    </div>
+                    <ul class="pick-grid">
+                        <li th:each="p : ${photoChoices}">
+                            <label class="pick">
+                                <input type="checkbox" name="photoIds" th:value="${p.id()}" th:checked="${selectedIds.contains(p.id())}">
+                                <img th:src="@{/photos/{id}/file(id=${p.id()})}" th:alt="${p.originalFilename()}" loading="lazy" decoding="async">
+                                <span class="mark"><svg class="icon"><use href="#i-check"/></svg></span>
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+            </th:block>
+        </section>
+
+        <div class="form-actions">
+            <span class="caption num" style="margin-right:auto"><span id="wcCount">0</span>개 선택됨 (4~64)</span>
+            <a class="btn secondary" th:href="@{/worldcups}">취소</a>
+            <button type="submit" class="btn primary" id="wcSubmit" disabled>월드컵 만들기</button>
+        </div>
+    </form>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('worldcup')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

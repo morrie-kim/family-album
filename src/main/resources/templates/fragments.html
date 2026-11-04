@@ -27,6 +27,7 @@
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/></symbol>
     <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 01-.6-7.96A5.5 5.5 0 0117.2 8.6 4.5 4.5 0 0117.5 18H7z"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 01-8 0V4z"/><path d="M8 6H5.5A1.5 1.5 0 004 7.5 3.5 3.5 0 007.5 11H8M16 6h2.5A1.5 1.5 0 0120 7.5 3.5 3.5 0 0116.5 11H16"/><path d="M12 13v4M8.5 20h7M10 17h4"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0012.5 4h-6A2.5 2.5 0 004 6.5v6A2.5 2.5 0 006.5 15H9"/></symbol>
 </svg>
 
@@ -38,6 +39,7 @@
     <nav class="toplinks" aria-label="주 메뉴">
         <a th:href="@{/photos}" th:attr="aria-current=${active == 'photos' ? 'page' : null}">사진</a>
         <a th:href="@{/family}" th:attr="aria-current=${active == 'family' ? 'page' : null}">가족</a>
+        <a th:href="@{/worldcups}" th:attr="aria-current=${active == 'worldcup' ? 'page' : null}">월드컵</a>
         <a th:href="@{/google}" th:attr="aria-current=${active == 'google' ? 'page' : null}">구글 포토</a>
     </nav>
     <span class="spacer"></span>
@@ -53,12 +55,30 @@
         <svg class="icon"><use href="#i-photo"/></svg>사진</a>
     <a th:href="@{/family}" th:attr="aria-current=${active == 'family' ? 'page' : null}">
         <svg class="icon"><use href="#i-users"/></svg>가족</a>
+    <a th:href="@{/worldcups}" th:attr="aria-current=${active == 'worldcup' ? 'page' : null}">
+        <svg class="icon"><use href="#i-trophy"/></svg>월드컵</a>
     <a th:href="@{/google}" th:attr="aria-current=${active == 'google' ? 'page' : null}">
         <svg class="icon"><use href="#i-cloud"/></svg>구글 포토</a>
     <form th:action="@{/logout}" method="post">
         <button type="submit"><svg class="icon"><use href="#i-logout"/></svg>로그아웃</button>
     </form>
 </nav>
+
+<!-- 월드컵 후보 썸네일(사진 또는 텍스트) -->
+<div th:fragment="wcThumb(e)" class="wc-thumb">
+    <img th:if="${e.hasPhoto()}" th:src="@{/photos/{id}/file(id=${e.photoId()})}" th:alt="${e.displayName()}" loading="lazy" decoding="async">
+    <span th:unless="${e.hasPhoto()}" class="wc-text" th:text="${e.displayName()}">후보</span>
+</div>
+
+<!-- 월드컵 대진 선택 카드: 누르면 바로 선택 -->
+<form th:fragment="wcChoice(e, action)" th:action="${action}" method="post" class="choice-form">
+    <input type="hidden" name="winnerId" th:value="${e.id()}">
+    <button type="submit" class="choice" th:attr="aria-label=${e.displayName()} + ' 선택'">
+        <span class="media" th:if="${e.hasPhoto()}"><img th:src="@{/photos/{id}/file(id=${e.photoId()})}" th:alt="${e.displayName()}" decoding="async"></span>
+        <span class="text-only" th:unless="${e.hasPhoto()}" th:text="${e.displayName()}">후보</span>
+        <span class="name" th:if="${e.hasPhoto() and !e.displayName().isEmpty()}" th:text="${e.displayName()}">이름</span>
+    </button>
+</form>
 
 <!-- 토스트(플래시 메시지) -->
 <div th:fragment="toasts" class="toasts" aria-live="polite">

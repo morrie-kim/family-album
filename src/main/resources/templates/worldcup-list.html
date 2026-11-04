@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('월드컵 · 가족앨범')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'worldcup')}"></header>
+
+<main class="container">
+    <section class="page-head">
+        <div>
+            <h1>이상형 월드컵</h1>
+            <p class="caption">주제를 정하고 후보를 고르면, 가족과 함께 우승자를 가려요.</p>
+        </div>
+        <a class="btn primary" th:href="@{/worldcups/new}">
+            <svg class="icon"><use href="#i-plus"/></svg><span class="label-text">새 월드컵</span>
+        </a>
+    </section>
+
+    <section class="empty" th:if="${worldcups.isEmpty()}">
+        <span class="ring"><svg class="icon lg"><use href="#i-trophy"/></svg></span>
+        <h2>아직 월드컵이 없어요</h2>
+        <p class="caption">“가장 좋았던 가족 여행”, “오늘 저녁 메뉴”처럼 주제를 정해 시작해 보세요.</p>
+    </section>
+
+    <section class="wc-list" th:unless="${worldcups.isEmpty()}">
+        <a class="card wc-card" th:each="w : ${worldcups}" th:href="@{/worldcups/{id}(id=${w.id()})}">
+            <span class="wc-card-head">
+                <span class="wc-icon"><svg class="icon"><use th:href="${w.photoBased()} ? '#i-photo' : '#i-trophy'"/></svg></span>
+                <span class="badge-role" th:if="${w.folderName() != null}" th:text="${w.folderName()}">폴더</span>
+            </span>
+            <strong class="wc-title" th:text="${w.title()}">주제</strong>
+            <span class="caption">
+                후보 <span class="num" th:text="${w.entryCount()}">16</span>개 ·
+                플레이 <span class="num" th:text="${w.playCount()}">0</span>회 ·
+                <span th:text="${w.creatorName()}">만든 사람</span>
+            </span>
+        </a>
+    </section>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('worldcup')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>

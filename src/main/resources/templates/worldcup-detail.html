@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${wc.title()} + ' · 월드컵')}"></head>
+<body>
+<svg th:replace="~{fragments :: sprite}"></svg>
+<header th:replace="~{fragments :: topbar(${me}, 'worldcup')}"></header>
+
+<main class="container" style="max-width:860px">
+    <section class="page-head">
+        <div>
+            <h1 th:text="${wc.title()}">주제</h1>
+            <p class="caption">
+                후보 <span class="num" th:text="${wc.entries().size()}">16</span>개 ·
+                플레이 <span class="num" th:text="${wc.playCount()}">0</span>회 ·
+                <span th:text="${wc.creatorName()}">만든 사람</span>
+                <span class="badge-role" th:if="${wc.folderName() != null}" th:text="${wc.folderName()}">폴더</span>
+            </p>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>몇 강으로 할까요?</h2>
+        <p class="caption">후보 중에서 무작위로 뽑아 대진을 만들어요.</p>
+        <form th:action="@{/worldcups/{id}/plays(id=${wc.id()})}" method="post" class="stack" style="margin-top:16px">
+            <div class="seg" role="radiogroup" aria-label="라운드">
+                <label th:each="r, st : ${wc.roundOptions()}">
+                    <input type="radio" name="rounds" th:value="${r}" th:checked="${st.last}">
+                    <span th:text="${r} + '강'">16강</span>
+                </label>
+            </div>
+            <button type="submit" class="btn primary lg block">시작하기</button>
+        </form>
+        <div class="detail-links">
+            <a class="btn secondary sm" th:href="@{/worldcups/{id}/results(id=${wc.id()})}"><svg class="icon"><use href="#i-trophy"/></svg>가족 전체 랭킹</a>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>후보 <span class="num" th:text="${wc.entries().size()}">16</span></h2>
+        <ul class="wc-entries">
+            <li th:each="e : ${wc.entries()}">
+                <div th:replace="~{fragments :: wcThumb(${e})}"></div>
+                <span class="caption" th:if="${e.hasPhoto()}" th:text="${e.displayName()}">이름</span>
+            </li>
+        </ul>
+    </section>
+
+    <form th:if="${wc.canDelete()}" th:action="@{/worldcups/{id}/delete(id=${wc.id()})}" method="post"
+          data-confirm="이 월드컵과 모든 플레이 기록을 삭제할까요?" style="margin-top:24px">
+        <button type="submit" class="btn ghost danger-text"><svg class="icon"><use href="#i-trash"/></svg>월드컵 삭제</button>
+    </form>
+</main>
+
+<nav th:replace="~{fragments :: tabbar('worldcup')}"></nav>
+<div th:replace="~{fragments :: toasts}"></div>
+</body>
+</html>
