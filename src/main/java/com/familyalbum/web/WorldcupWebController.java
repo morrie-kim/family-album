@@ -1,5 +1,7 @@
 package com.familyalbum.web;
 
+import com.familyalbum.images.ImageResult;
+import com.familyalbum.images.ImageSearchService;
 import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.service.FolderService;
 import com.familyalbum.service.PhotoService;
@@ -26,11 +28,14 @@ public class WorldcupWebController {
     private final WorldcupService service;
     private final FolderService folderService;
     private final PhotoService photoService;
+    private final ImageSearchService imageSearch;
 
-    public WorldcupWebController(WorldcupService service, FolderService folderService, PhotoService photoService) {
+    public WorldcupWebController(WorldcupService service, FolderService folderService, PhotoService photoService,
+                                 ImageSearchService imageSearch) {
         this.service = service;
         this.folderService = folderService;
         this.photoService = photoService;
+        this.imageSearch = imageSearch;
     }
 
     @GetMapping
@@ -43,8 +48,9 @@ public class WorldcupWebController {
     String newForm(@AuthenticationPrincipal AppPrincipal me,
                    @RequestParam(defaultValue = "text") String mode,
                    @RequestParam(required = false) Long folder,
-                   @RequestParam(required = false) String title, Model model) {
-        prepareNew(model, me, mode, folder, title, "", List.of(), null);
+                   @RequestParam(required = false) String title,
+                   @RequestParam(required = false) String q, Model model) {
+        prepareNew(model, me, mode, folder, title, "", List.of(), null, q, null);
         return "worldcup-new";
     }
 
@@ -54,15 +60,19 @@ public class WorldcupWebController {
                   @RequestParam(required = false) String labels,
                   @RequestParam(required = false) Long folderId,
                   @RequestParam(name = "photoIds", required = false) List<Long> photoIds,
+                  @RequestParam(name = "imageIds", required = false) List<String> imageIds,
+                  @RequestParam(required = false) String q,
                   Model model, RedirectAttributes ra) {
         try {
-            Long id = "photo".equals(mode)
-                    ? service.createFromPhotos(me, title, folderId, photoIds)
-                    : service.createFromLabels(me, title, labels);
+            Long id = switch (mode) {
+                case "photo" -> service.createFromPhotos(me, title, folderId, photoIds);
+                case "web" -> service.createFromWeb(me, title, q, imageIds);
+                default -> service.createFromLabels(me, title, labels);
+            };
             ra.addFlashAttribute("message", "월드컵을 만들었어요.");
             return "redirect:/worldcups/" + id;
         } catch (ApiException e) {
-            prepareNew(model, me, mode, folderId, title, labels, photoIds, e.getMessage());
+            prepareNew(model, me, mode, folderId, title, labels, photoIds, e.getMessage(), q, imageIds);
             return "worldcup-new";
         }
     }
@@ -142,9 +152,11 @@ public class WorldcupWebController {
     }
 
     private void prepareNew(Model model, AppPrincipal me, String mode, Long folderId, String title,
-                            String labels, List<Long> selected, String error) {
+                            String labels, List<Long> selected, String error, String query,
+                            List<String> selectedImageIds) {
         boolean photoMode = "photo".equals(mode);
-        model.addAttribute("mode", photoMode ? "photo" : "text");
+        boolean webMode = "web".equals(mode);
+        model.addAttribute("mode", photoMode ? "photo" : webMode ? "web" : "text");
         model.addAttribute("title", title == null ? "" : title);
         model.addAttribute("labels", labels == null ? "" : labels);
         model.addAttribute("selectedIds", selected == null ? Set.<Long>of() : new HashSet<>(selected));
@@ -157,8 +169,41 @@ public class WorldcupWebController {
             // 한 번에 고를 수 있는 사진은 해당 폴더의 최신 60장
             model.addAttribute("photoChoices", photoService.list(me, current.id(), 0, 60).content());
         }
+        if (webMode) {
+            prepareWeb(model, title, query, selectedImageIds);
+        }
         if (error != null) {
             model.addAttribute("error", error);
         }
+    }
+
+    /**
+     * 인터넷 이미지 모드: 검색어(비우면 주제)로 이미지를 검색해 결과 그리드를 만든다.
+     * 검색 실패는 화면 안에서 안내하고(webError) 폼 자체는 계속 쓸 수 있게 한다.
+     */
+    private void prepareWeb(Model model, String title, String query, List<String> selectedImageIds) {
+        String q = query != null && !query.isBlank() ? query : title;
+        model.addAttribute("webQuery", q == null ? "" : q.trim());
+        model.addAttribute("webSearched", false);
+        model.addAttribute("webResults", List.<ImageResult>of());
+        model.addAttribute("webProvider", "");
+        Set<String> selected = new HashSet<>(selectedImageIds == null ? List.<String>of() : selectedImageIds);
+        if (q == null || q.isBlank()) {
+            model.addAttribute("selectedImageIds", selected);
+            return;
+        }
+        try {
+            ImageSearchService.Outcome outcome = imageSearch.search(q);
+            model.addAttribute("webSearched", true);
+            model.addAttribute("webResults", outcome.results());
+            model.addAttribute("webProvider", outcome.provider());
+            if (selected.isEmpty()) { // 처음 검색 결과는 앞의 16장을 미리 선택해 바로 시작할 수 있게 한다.
+                outcome.results().stream().limit(16).forEach(r -> selected.add(r.id()));
+            }
+        } catch (ApiException e) {
+            model.addAttribute("webSearched", true);
+            model.addAttribute("webError", e.getMessage());
+        }
+        model.addAttribute("selectedImageIds", selected);
     }
 }

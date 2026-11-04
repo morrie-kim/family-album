@@ -47,6 +47,11 @@ app:
     client-secret: ${GOOGLE_CLIENT_SECRET:}
     token-key: ${GOOGLE_TOKEN_KEY:}   # base64 32바이트: openssl rand -base64 32
     max-pick-items: 50
+  # 월드컵 인터넷 이미지 검색. PEXELS_API_KEY 가 있으면 Pexels(고화질·한글 검색), 없으면 키 없이 쓰는 Openverse
+  images:
+    pexels-api-key: ${PEXELS_API_KEY:}
+    user-agent: family-album/1.0 (+https://github.com/morrie-kim/family-album)
+    max-results: 60
 
 # API 문서(Swagger UI): 기본 활성(dev). 운영은 application-prod.yml 에서 비활성화.
 springdoc:

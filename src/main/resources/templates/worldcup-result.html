@@ -21,6 +21,11 @@
             <div class="champ-media" th:replace="~{fragments :: wcThumb(${result.champion()})}"></div>
             <strong class="champ-name" th:text="${result.champion().displayName()}">우승자</strong>
             <p class="caption"><span class="num" th:text="${result.startSize()}">16</span>강 우승</p>
+            <p class="caption credit-line" th:if="${result.champion().credit() != null}">
+                <a th:if="${result.champion().sourceUrl() != null}" th:href="${result.champion().sourceUrl()}"
+                   target="_blank" rel="noopener noreferrer" th:text="${result.champion().credit()}">© 작성자</a>
+                <span th:unless="${result.champion().sourceUrl() != null}" th:text="${result.champion().credit()}">© 작성자</span>
+            </p>
         </section>
 
         <section class="card">
@@ -48,7 +53,7 @@
             <li th:each="r : ${ranking.rows()}">
                 <span class="rank num" th:classappend="${r.rank() <= 3} ? 'top'" th:text="${r.rank()}">1</span>
                 <div th:replace="~{fragments :: wcThumb(${r.entry()})}"></div>
-                <span class="rank-name" th:if="${r.entry().hasPhoto()}" th:text="${r.entry().displayName()}"></span>
+                <span class="rank-name" th:if="${r.entry().hasImage()}" th:text="${r.entry().displayName()}"></span>
                 <span class="rank-stats caption num">
                     우승 <strong th:text="${r.champions()}">0</strong> ·
                     승률 <strong th:text="${r.winRatePercent()} + '%'">0%</strong>

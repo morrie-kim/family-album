@@ -95,16 +95,23 @@
     const base = wcNew.dataset.base;
     const titleInput = $('input[name="title"]', wcNew);
     const counter = $('#wcCount'), submit = $('#wcSubmit');
-    const goto = (mode, folder) => {
+    const goto = (mode, folder, query) => {
       const q = new URLSearchParams({ mode, title: titleInput.value });
       if (folder) q.set('folder', folder);
+      if (query) q.set('q', query);
       location.href = `${base}/new?${q.toString()}`; // 입력한 주제는 유지
     };
     $$('input[data-kind]', wcNew).forEach(r => r.addEventListener('change', () => goto(r.value)));
     $('#wcFolder')?.addEventListener('change', e => goto('photo', e.target.value));
 
+    // 인터넷 이미지: 검색어(비우면 주제)로 검색. 검색어 입력창에서 Enter 를 눌러도 폼 전송 대신 검색한다.
+    const queryInput = $('#wcQuery');
+    const search = () => goto('web', null, (queryInput?.value || '').trim());
+    $('#wcSearch')?.addEventListener('click', search);
+    queryInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search(); } });
+
     const MIN = 4, MAX = 64;
-    const boxes = $$('input[name="photoIds"]', wcNew);
+    const boxes = $$('input[name="photoIds"], input[name="imageIds"]', wcNew);
     const labels = $('#wcLabels');
     const update = () => {
       let n = 0;

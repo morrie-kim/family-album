@@ -21,6 +21,9 @@ public interface WorldcupEntryRepository extends JpaRepository<WorldcupEntry, Lo
     /** 월드컵 후보로 쓰이는 사진은 삭제할 수 없다(PhotoService 에서 사용). */
     boolean existsByPhotoId(Long photoId);
 
+    /** 인터넷 이미지 월드컵 여부 */
+    boolean existsByWorldcupIdAndImageUrlIsNotNull(Long worldcupId);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from WorldcupEntry e where e.worldcupId = :worldcupId")
     void deleteAllByWorldcup(@Param("worldcupId") Long worldcupId);

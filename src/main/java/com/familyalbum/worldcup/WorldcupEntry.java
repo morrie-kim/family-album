@@ -22,6 +22,16 @@ public class WorldcupEntry {
     @JoinColumn(name = "photo_id")
     private Photo photo;
 
+    /** 인터넷 이미지 후보: 검색 제공처가 준 https 이미지 주소와 출처(라이선스 표기) */
+    @Column(length = 1000)
+    private String imageUrl;
+
+    @Column(length = 1000)
+    private String sourceUrl;
+
+    @Column(length = 300)
+    private String credit;
+
     @Column(nullable = false)
     private int sortOrder;
 
@@ -34,9 +44,20 @@ public class WorldcupEntry {
         this.sortOrder = sortOrder;
     }
 
+    public static WorldcupEntry web(Long worldcupId, String label, String imageUrl, String sourceUrl, String credit, int sortOrder) {
+        WorldcupEntry e = new WorldcupEntry(worldcupId, label, null, sortOrder);
+        e.imageUrl = imageUrl;
+        e.sourceUrl = sourceUrl;
+        e.credit = credit;
+        return e;
+    }
+
     public Long getId() { return id; }
     public Long getWorldcupId() { return worldcupId; }
     public String getLabel() { return label; }
     public Photo getPhoto() { return photo; }
+    public String getImageUrl() { return imageUrl; }
+    public String getSourceUrl() { return sourceUrl; }
+    public String getCredit() { return credit; }
     public int getSortOrder() { return sortOrder; }
 }

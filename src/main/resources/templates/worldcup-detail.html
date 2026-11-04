@@ -40,7 +40,20 @@
         <ul class="wc-entries">
             <li th:each="e : ${wc.entries()}">
                 <div th:replace="~{fragments :: wcThumb(${e})}"></div>
-                <span class="caption" th:if="${e.hasPhoto()}" th:text="${e.displayName()}">이름</span>
+                <span class="caption" th:if="${e.hasImage()}" th:text="${e.displayName()}">이름</span>
+            </li>
+        </ul>
+    </section>
+
+    <section class="card" th:if="${wc.webBased()}">
+        <h2>이미지 출처</h2>
+        <p class="caption">인터넷에서 검색한 오픈/무료 라이선스 이미지예요. 작성자와 라이선스 표기를 그대로 유지해 주세요.</p>
+        <ul class="credits">
+            <li th:each="e : ${wc.entries()}" th:if="${e.credit() != null}">
+                <a th:if="${e.sourceUrl() != null}" th:href="${e.sourceUrl()}" target="_blank" rel="noopener noreferrer"
+                   th:text="${e.displayName().isEmpty() ? '원본 보기' : e.displayName()}">원본</a>
+                <span th:unless="${e.sourceUrl() != null}" th:text="${e.displayName()}">이름</span>
+                <span class="caption" th:text="${e.credit()}">© 작성자 · 라이선스</span>
             </li>
         </ul>
     </section>

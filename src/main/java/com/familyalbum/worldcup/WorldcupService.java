@@ -5,6 +5,8 @@ import com.familyalbum.domain.Folder;
 import com.familyalbum.domain.Permission;
 import com.familyalbum.domain.Photo;
 import com.familyalbum.repository.AppUserRepository;
+import com.familyalbum.images.ImageResult;
+import com.familyalbum.images.ImageSearchService;
 import com.familyalbum.repository.PhotoRepository;
 import com.familyalbum.security.AppPrincipal;
 import com.familyalbum.service.FolderAccessService;
@@ -50,10 +52,11 @@ public class WorldcupService {
     private final AppUserRepository users;
     private final PhotoRepository photos;
     private final FolderAccessService access;
+    private final ImageSearchService imageSearch;
 
     public WorldcupService(WorldcupRepository worldcups, WorldcupEntryRepository entries, WorldcupPlayRepository plays,
                            WorldcupMatchRepository matches, AppUserRepository users, PhotoRepository photos,
-                           FolderAccessService access) {
+                           FolderAccessService access, ImageSearchService imageSearch) {
         this.worldcups = worldcups;
         this.entries = entries;
         this.plays = plays;
@@ -61,6 +64,7 @@ public class WorldcupService {
         this.users = users;
         this.photos = photos;
         this.access = access;
+        this.imageSearch = imageSearch;
     }
 
     /* ───────── 만들기 ───────── */
@@ -74,6 +78,28 @@ public class WorldcupService {
         int order = 0;
         for (String label : labels) {
             entries.save(new WorldcupEntry(w.getId(), label, null, order++));
+        }
+        return w.getId();
+    }
+
+    /**
+     * 인터넷 이미지 월드컵: 주제로 검색한 결과 중 선택한 이미지로 후보를 만든다.
+     * 이미지 주소는 클라이언트가 보낸 값이 아니라 검색 서비스의 결과(id → 허용된 https 호스트)에서만 가져온다.
+     */
+    @Transactional
+    public Long createFromWeb(AppPrincipal me, String title, String query, List<String> imageIds) {
+        String cleanTitle = cleanTitle(title);
+        List<String> ids = imageIds == null ? List.of() : imageIds.stream().filter(Objects::nonNull).distinct().toList();
+        requireCount(ids.size());
+        List<ImageResult> picked = imageSearch.resolve(query != null && !query.isBlank() ? query : cleanTitle, ids);
+
+        AppUser creator = loadUser(me);
+        Worldcup w = worldcups.save(new Worldcup(creator.getFamily(), creator, null, cleanTitle));
+        int order = 0;
+        for (ImageResult r : picked) {
+            String credit = r.credit();
+            entries.save(WorldcupEntry.web(w.getId(), r.title(), r.thumbUrl(), r.sourceUrl(),
+                    credit.length() > 300 ? credit.substring(0, 300) : credit, order++));
         }
         return w.getId();
     }
@@ -113,7 +139,8 @@ public class WorldcupService {
                 .map(w -> new Summary(w.getId(), w.getTitle(), (int) entries.countByWorldcupId(w.getId()),
                         plays.countByWorldcupId(w.getId()),
                         w.getFolder() == null ? null : w.getFolder().getName(),
-                        w.getCreatedBy().getName(), w.getFolder() != null, canDelete(me, w)))
+                        w.getCreatedBy().getName(), w.getFolder() != null,
+                        entries.existsByWorldcupIdAndImageUrlIsNotNull(w.getId()), canDelete(me, w)))
                 .toList();
     }
 
@@ -122,7 +149,8 @@ public class WorldcupService {
         Worldcup w = requireAccessible(me, id);
         List<Entry> list = entries.findByWorldcupIdOrderBySortOrderAsc(id).stream().map(WorldcupService::toEntry).toList();
         return new Detail(w.getId(), w.getTitle(), w.getCreatedBy().getName(),
-                w.getFolder() == null ? null : w.getFolder().getName(), w.getFolder() != null, canDelete(me, w),
+                w.getFolder() == null ? null : w.getFolder().getName(), w.getFolder() != null,
+                list.stream().anyMatch(Entry::hasExternal), canDelete(me, w),
                 plays.countByWorldcupId(id), Bracket.options(list.size()), list);
     }
 
@@ -287,7 +315,8 @@ public class WorldcupService {
 
     private static Entry toEntry(WorldcupEntry e) {
         Photo p = e.getPhoto();
-        return new Entry(e.getId(), e.getLabel(), p == null ? null : p.getId(), p == null ? null : p.getOriginalFilename());
+        return new Entry(e.getId(), e.getLabel(), p == null ? null : p.getId(), p == null ? null : p.getOriginalFilename(),
+                e.getImageUrl(), e.getSourceUrl(), e.getCredit());
     }
 
     private static String labelOf(Photo p) {

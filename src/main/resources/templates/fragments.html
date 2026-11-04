@@ -28,6 +28,8 @@
     <symbol id="i-settings" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="8" cy="17" r="1.8"/></symbol>
     <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 01-.6-7.96A5.5 5.5 0 0117.2 8.6 4.5 4.5 0 0117.5 18H7z"/></symbol>
     <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 01-8 0V4z"/><path d="M8 6H5.5A1.5 1.5 0 004 7.5 3.5 3.5 0 007.5 11H8M16 6h2.5A1.5 1.5 0 0120 7.5 3.5 3.5 0 0116.5 11H16"/><path d="M12 13v4M8.5 20h7M10 17h4"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.2 3.6 8.5s-1.2 6.1-3.6 8.5c-2.4-2.4-3.6-5.2-3.6-8.5s1.2-6.1 3.6-8.5z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M15 9V6.5A2.5 2.5 0 0012.5 4h-6A2.5 2.5 0 004 6.5v6A2.5 2.5 0 006.5 15H9"/></symbol>
 </svg>
 
@@ -67,7 +69,8 @@
 <!-- 월드컵 후보 썸네일(사진 또는 텍스트) -->
 <div th:fragment="wcThumb(e)" class="wc-thumb">
     <img th:if="${e.hasPhoto()}" th:src="@{/photos/{id}/file(id=${e.photoId()})}" th:alt="${e.displayName()}" loading="lazy" decoding="async">
-    <span th:unless="${e.hasPhoto()}" class="wc-text" th:text="${e.displayName()}">후보</span>
+    <img th:if="${e.hasExternal()}" th:src="${e.imageUrl()}" th:alt="${e.displayName()}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+    <span th:unless="${e.hasImage()}" class="wc-text" th:text="${e.displayName()}">후보</span>
 </div>
 
 <!-- 월드컵 대진 선택 카드: 누르면 바로 선택 -->
@@ -75,8 +78,9 @@
     <input type="hidden" name="winnerId" th:value="${e.id()}">
     <button type="submit" class="choice" th:attr="aria-label=${e.displayName()} + ' 선택'">
         <span class="media" th:if="${e.hasPhoto()}"><img th:src="@{/photos/{id}/file(id=${e.photoId()})}" th:alt="${e.displayName()}" decoding="async"></span>
-        <span class="text-only" th:unless="${e.hasPhoto()}" th:text="${e.displayName()}">후보</span>
-        <span class="name" th:if="${e.hasPhoto() and !e.displayName().isEmpty()}" th:text="${e.displayName()}">이름</span>
+        <span class="media" th:if="${e.hasExternal()}"><img th:src="${e.imageUrl()}" th:alt="${e.displayName()}" decoding="async" referrerpolicy="no-referrer"></span>
+        <span class="text-only" th:unless="${e.hasImage()}" th:text="${e.displayName()}">후보</span>
+        <span class="name" th:if="${e.hasImage() and !e.displayName().isEmpty()}" th:text="${e.displayName()}">이름</span>
     </button>
 </form>
 

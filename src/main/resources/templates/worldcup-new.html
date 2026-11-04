@@ -9,7 +9,7 @@
     <section class="page-head">
         <div>
             <h1>새 월드컵 만들기</h1>
-            <p class="caption">주제를 입력하고 후보를 4~64개 등록하세요.</p>
+            <p class="caption">주제를 입력하고 후보를 4~64개 등록하세요. 인터넷에서 주제와 관련된 이미지를 찾아 바로 시작할 수도 있어요.</p>
         </div>
     </section>
 
@@ -24,8 +24,9 @@
         <div class="field">
             <span class="label">후보 종류</span>
             <div class="seg" role="tablist">
-                <label><input type="radio" name="kind" value="text" th:checked="${mode == 'text'}" data-kind><span>텍스트로 입력</span></label>
-                <label><input type="radio" name="kind" value="photo" th:checked="${mode == 'photo'}" data-kind><span>앨범 사진으로</span></label>
+                <label><input type="radio" name="kind" value="web" th:checked="${mode == 'web'}" data-kind><span>인터넷 이미지</span></label>
+                <label><input type="radio" name="kind" value="photo" th:checked="${mode == 'photo'}" data-kind><span>앨범 사진</span></label>
+                <label><input type="radio" name="kind" value="text" th:checked="${mode == 'text'}" data-kind><span>텍스트</span></label>
             </div>
         </div>
 
@@ -33,6 +34,39 @@
         <label class="field" th:if="${mode == 'text'}"><span>후보 (한 줄에 하나씩)</span>
             <textarea id="wcLabels" name="labels" rows="10" th:text="${labels}" placeholder="제주도&#10;부산&#10;강릉&#10;여수"></textarea>
         </label>
+
+        <!-- 인터넷 이미지 후보: 주제로 검색한 결과에서 고른다 -->
+        <section class="card" th:if="${mode == 'web'}">
+            <div class="search-row">
+                <input type="text" id="wcQuery" name="q" th:value="${webQuery}" maxlength="60"
+                       placeholder="검색어 (비워 두면 위의 주제로 검색해요)" aria-label="이미지 검색어">
+                <button type="button" class="btn secondary" id="wcSearch"><svg class="icon"><use href="#i-search"/></svg>이미지 검색</button>
+            </div>
+            <p class="caption" style="margin-top:8px">오픈/무료 라이선스 이미지(Openverse·Pexels)를 보여줘요. 영어 검색어가 더 잘 나올 수 있어요.</p>
+
+            <p class="alert error" role="alert" th:if="${webError}" th:text="${webError}" style="margin-top:12px"></p>
+            <p class="caption" th:if="${!webSearched}" style="margin-top:16px">주제를 입력하고 ‘이미지 검색’을 누르면 관련 이미지가 나타나요.</p>
+            <p class="caption" th:if="${webSearched and webError == null and webResults.isEmpty()}" style="margin-top:16px">
+                검색 결과가 없어요. 다른 검색어로 다시 검색해 보세요.</p>
+
+            <div th:unless="${webResults.isEmpty()}">
+                <div class="pick-tools">
+                    <button type="button" class="btn secondary sm" id="wcSelectAll">전체 선택 (최대 64장)</button>
+                    <button type="button" class="btn ghost sm" id="wcClear">선택 해제</button>
+                </div>
+                <ul class="pick-grid web">
+                    <li th:each="r : ${webResults}">
+                        <label class="pick" th:title="${r.credit()}">
+                            <input type="checkbox" name="imageIds" th:value="${r.id()}" th:checked="${selectedImageIds.contains(r.id())}">
+                            <img th:src="${r.thumbUrl()}" th:alt="${r.title()}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                            <span class="mark"><svg class="icon"><use href="#i-check"/></svg></span>
+                        </label>
+                    </li>
+                </ul>
+                <p class="caption" style="margin-top:12px">검색 제공처: <strong th:text="${webProvider}">Openverse</strong> ·
+                    미리 선택된 이미지는 바꿀 수 있어요. 작성자·라이선스는 월드컵 상세 화면에 표시돼요.</p>
+            </div>
+        </section>
 
         <!-- 사진 후보 -->
         <section class="card" th:if="${mode == 'photo'}">

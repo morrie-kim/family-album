@@ -25,7 +25,7 @@
     <section class="wc-list" th:unless="${worldcups.isEmpty()}">
         <a class="card wc-card" th:each="w : ${worldcups}" th:href="@{/worldcups/{id}(id=${w.id()})}">
             <span class="wc-card-head">
-                <span class="wc-icon"><svg class="icon"><use th:href="${w.photoBased()} ? '#i-photo' : '#i-trophy'"/></svg></span>
+                <span class="wc-icon"><svg class="icon"><use th:href="${w.webBased() ? '#i-globe' : (w.photoBased() ? '#i-photo' : '#i-trophy')}"/></svg></span>
                 <span class="badge-role" th:if="${w.folderName() != null}" th:text="${w.folderName()}">폴더</span>
             </span>
             <strong class="wc-title" th:text="${w.title()}">주제</strong>
