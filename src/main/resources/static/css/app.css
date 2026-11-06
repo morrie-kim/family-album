@@ -451,3 +451,18 @@ textarea:focus { outline: none; border-color: var(--blue); background: var(--sur
 .credits li:first-child { border-top: 0; }
 .credit-line { font-size: 13px; }
 .credit-line a { color: var(--g600); text-decoration: underline; }
+
+/* ── 모바일 보정: 세그먼트 줄바꿈, 그리드 밀도, 하단 고정 액션바 ── */
+.seg span { white-space: nowrap; }
+.btn { white-space: nowrap; }
+@media (max-width: 639px) {
+  .seg span { padding: 10px 6px; font-size: 14px; }
+  .pick-grid, .pick-grid.web { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .search-row .btn { padding-inline: 14px; }
+  .form-actions {
+    position: sticky; bottom: calc(56px + env(safe-area-inset-bottom) + 8px); z-index: 5; flex-wrap: wrap;
+    padding: 12px; border-radius: 16px; background: var(--surface); box-shadow: var(--sh3);
+  }
+  .form-actions > .caption { flex: 1 0 100%; margin: 0 0 2px !important; }
+  .form-actions .btn { flex: 1; }
+}

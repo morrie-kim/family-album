@@ -1,0 +1,6 @@
+# 쉘/배치 스크립트의 줄바꿈을 고정(윈도우에서 gradlew 가 CRLF 로 깨지는 문제 방지)
+* text=auto
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.jar binary

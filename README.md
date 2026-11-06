@@ -8,9 +8,10 @@
 
 ## 실행
 ```bash
-gradle wrapper --gradle-version 8.14   # 최초 1회
-./gradlew bootRun                      # http://localhost:8080
+./gradlew bootRun                      # http://localhost:8080  (Windows: gradlew.bat bootRun)
 ```
+Gradle Wrapper(8.14.3)가 포함되어 있어 별도 Gradle 설치가 필요 없습니다. 최초 실행 시 배포본을 내려받으며 SHA-256 체크섬을 검증합니다.
+**JDK 24** 가 설치되어 있어야 합니다(`build.gradle` 의 toolchain 이 Java 24 를 요구).
 회원가입(새 가족 이름 입력) → 첫 가입자가 **가족 관리자(ADMIN)** 가 되고 기본 폴더 “가족 앨범”이 만들어집니다.
 `가족` 메뉴의 초대 코드로 다른 가족이 가입하면 기본 폴더에 **올리기(EDIT)** 권한이 자동 부여됩니다.
 

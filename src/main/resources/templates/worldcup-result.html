@@ -18,7 +18,7 @@
     <th:block th:if="${result != null}">
         <section class="champion card">
             <span class="champ-badge"><svg class="icon"><use href="#i-trophy"/></svg>우승</span>
-            <div class="champ-media" th:replace="~{fragments :: wcThumb(${result.champion()})}"></div>
+            <div class="champ-media"><div th:replace="~{fragments :: wcThumb(${result.champion()})}"></div></div>
             <strong class="champ-name" th:text="${result.champion().displayName()}">우승자</strong>
             <p class="caption"><span class="num" th:text="${result.startSize()}">16</span>강 우승</p>
             <p class="caption credit-line" th:if="${result.champion().credit() != null}">
