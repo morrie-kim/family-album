@@ -1,6 +1,7 @@
 package com.familyalbum.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,6 +16,9 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 @Configuration
 public class SecurityConfig {
+
+    @Value("${springdoc.api-docs.enabled:false}")
+    private boolean docsEnabled;
 
     /**
      * REST API(/api/**): stateless + HTTP Basic. 세션/CSRF 없음.
@@ -39,8 +43,7 @@ public class SecurityConfig {
     /** 화면(Thymeleaf): 세션 폼 로그인 + CSRF(기본 활성) */
     @Bean
     @Order(2)
-    SecurityFilterChain webChain(HttpSecurity http,
-                                 @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
+    SecurityFilterChain webChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(a -> {
                 a.requestMatchers("/login", "/signup", "/css/**", "/js/**", "/error").permitAll();
