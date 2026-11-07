@@ -52,6 +52,10 @@ Gradle Wrapper(8.14.3)가 포함되어 있어 별도 Gradle 설치가 필요 없
 - **‘테스트’ 게시 상태의 앱은 refresh token 이 7일 뒤 만료**됩니다(구글 정책). 만료되면 앱이 연결을 지우고 “다시 연결해 주세요”를 안내합니다. 오래 쓰려면 동의 화면을 *프로덕션*으로 게시하세요(민감 스코프는 구글 검증이 필요할 수 있고, 검증 전에는 “확인되지 않은 앱” 경고와 사용자 수 제한이 있습니다).
 - 가져온 사진의 HEIC 등 일부 형식은 서버 허용 형식(JPEG/PNG/WEBP/GIF/HEIC)에 따라 거절될 수 있습니다.
 
+## 3-1. Cloudflare 로 배포 (Docker + Tunnel)
+`docker compose --profile named up -d --build` — 앱 + PostgreSQL + Cloudflare Tunnel 구성(고정 도메인 HTTPS). 절차와 주의사항은 [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md).
+(Cloudflare Workers 에는 JVM 앱을 올릴 수 없고, Containers 는 디스크가 휘발해 현재 구조로는 부적합합니다.)
+
 ## 3. ngrok 으로 호스팅
 ```bash
 cp .env.example .env        # NGROK_DOMAIN, GOOGLE_* 채우기

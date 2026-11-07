@@ -1,0 +1,11 @@
+.git
+.gitattributes
+.gradle
+build
+data
+.env
+*.md
+docs
+scripts
+.idea
+*.iml
