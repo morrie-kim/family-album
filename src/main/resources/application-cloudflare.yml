@@ -1,0 +1,10 @@
+# SPRING_PROFILES_ACTIVE=prod,cloudflare  — Cloudflare Containers (컨테이너 디스크는 휘발성)
+# DB_URL(외부 PostgreSQL)을 설정하면 데이터가 유지되고, 없으면 인메모리 H2 로 동작한다(컨테이너가 잠들면 데이터 소멸 → 시연용).
+spring:
+  datasource:
+    url: "${DB_URL:jdbc:h2:mem:albumdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}"
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update   # 마이그레이션 도구가 도입되기 전까지 테이블 자동 생성

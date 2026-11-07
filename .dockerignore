@@ -9,3 +9,9 @@ docs
 scripts
 .idea
 *.iml
+node_modules
+.wrangler
+cloudflare
+package.json
+package-lock.json
+wrangler.jsonc

@@ -1,0 +1,24 @@
+{
+  // Cloudflare Containers: Worker 가 요청을 Spring Boot 컨테이너(Dockerfile)로 전달한다.
+  // 배포: `npx wrangler deploy` (Workers Builds 의 Deploy command 도 동일). Java/Gradle 은 Docker 이미지 안에서 빌드된다.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "family-album",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  "containers": [
+    {
+      "class_name": "FamilyAlbum",
+      "image": "./Dockerfile",
+      // Spring Boot + Hibernate 는 메모리 여유가 필요해 4GiB 급 인스턴스를 사용
+      "instance_type": "standard-1",
+      // 앱 상태(인메모리 DB 사용 시)를 한 인스턴스에 모으기 위해 1개로 제한
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "FAMILY_ALBUM", "class_name": "FamilyAlbum" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["FamilyAlbum"] }]
+}

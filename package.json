@@ -1,0 +1,16 @@
+{
+  "name": "family-album-cloudflare",
+  "private": true,
+  "type": "module",
+  "description": "가족앨범(Spring Boot)을 Cloudflare Containers 로 배포하기 위한 Worker. 앱 코드는 Gradle/Java 이며 Docker 이미지로 빌드됩니다.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.158.0"
+  }
+}

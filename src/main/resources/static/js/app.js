@@ -216,7 +216,8 @@
   const MAX_BYTES = Number(dlg.dataset.maxBytes);
   const MAX_MB = Number(dlg.dataset.maxMb);
   const MAX_SELECT = 100;  // 한 번에 고를 수 있는 총 장수
-  const BATCH = 10;        // 한 요청에 담는 장수 (서버 상한 이내, 순차 전송)
+  const BATCH = 10;        // 한 요청에 담는 최대 장수 (서버 상한 이내, 순차 전송)
+  const MAX_BATCH_BYTES = 60 * 1024 * 1024; // 한 요청의 최대 용량. 프록시/CDN 의 요청 본문 한도(예: Cloudflare 100MB) 아래로 유지
   const TYPES = /^image\/(jpeg|png|webp|gif|heic)$/;
 
   let items = [];          // { key, file, url, state }
@@ -341,8 +342,18 @@
     let sent = 0, okCount = 0;
     const failures = []; // { name, reason }
 
-    for (let i = 0; i < items.length; i += BATCH) {
-      const batch = items.slice(i, i + BATCH);
+    // 장수(BATCH)와 용량(MAX_BATCH_BYTES) 둘 다 넘지 않게 묶는다. 파일 1장은 항상 단독으로 들어갈 수 있다(장당 한도 이내).
+    const batches = [];
+    let cur = [], curBytes = 0;
+    for (const it of items) {
+      if (cur.length && (cur.length >= BATCH || curBytes + it.file.size > MAX_BATCH_BYTES)) {
+        batches.push(cur); cur = []; curBytes = 0;
+      }
+      cur.push(it); curBytes += it.file.size;
+    }
+    if (cur.length) batches.push(cur);
+
+    for (const batch of batches) {
       batch.forEach(b => (b.state = 'uploading')); render();
       const batchBytes = batch.reduce((s, b) => s + b.file.size, 0);
 
