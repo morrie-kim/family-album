@@ -1,7 +1,6 @@
 # 가족앨범 + PostgreSQL + Cloudflare Tunnel
-#   docker compose --profile named up -d --build   # 고정 도메인(Cloudflare 계정·도메인 필요)
-#   docker compose --profile quick up -d --build   # 임시 주소(trycloudflare.com, 계정 불필요)
-# 자세한 절차: docs/DEPLOY-CLOUDFLARE.md
+# 로컬 빌드: docker compose --profile named up -d --build
+# VPS 배포: GitHub Actions가 APP_IMAGE를 .env에 설정하고 이미지 pull/up 수행
 services:
   postgres:
     image: postgres:17
@@ -19,17 +18,17 @@ services:
       retries: 12
 
   app:
+    image: ${APP_IMAGE:-familyalbum:local}
     build: .
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod            # Swagger 비노출, Secure 쿠키
+      SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:postgresql://postgres:5432/familyalbum
       DB_USERNAME: familyalbum
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      # prod 기본값은 validate 인데 스키마 마이그레이션 도구가 아직 없어 첫 기동에 테이블을 만들도록 update 사용
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       PHOTO_STORAGE_ROOT: /data/photos
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
@@ -41,9 +40,8 @@ services:
     volumes:
       - photos:/data/photos
     ports:
-      - "127.0.0.1:8080:8080"                 # 로컬 확인용. 외부 공개는 아래 터널로만
+      - "127.0.0.1:8080:8080"
 
-  # 고정 도메인: Zero Trust 대시보드에서 만든 터널 토큰으로 실행 (공개 호스트명 → http://app:8080)
   cloudflared:
     image: cloudflare/cloudflared:latest
     profiles: ["named"]
@@ -54,7 +52,6 @@ services:
     depends_on:
       - app
 
-  # 임시 주소: 기동 때마다 https://<임의>.trycloudflare.com 이 새로 발급됨(로그에서 확인)
   cloudflared-quick:
     image: cloudflare/cloudflared:latest
     profiles: ["quick"]
