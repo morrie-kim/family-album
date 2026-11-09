@@ -64,3 +64,16 @@ docker compose --profile named logs -f cloudflared
 ```
 
 현재 배포는 기존 PostgreSQL 및 사진 볼륨을 유지하면서 앱 컨테이너를 교체합니다. 무중단 배포는 아니며, 데이터베이스 스키마 변경 전에는 백업을 권장합니다.
+
+## Cloudflare 대시보드 설정 (Free 플랜)
+
+이 저장소는 Cloudflare Workers/Pages 에 직접 배포하는 프로젝트가 아닙니다. Spring Boot 는 Java 24 런타임이 있는 Docker 컨테이너에서 실행해야 하며, Cloudflare Free 는 VPS 앞단의 Tunnel 로 사용합니다.
+
+과거에 Workers Builds 에 이 GitHub 저장소를 연결하고 Deploy command 를 `npx wrangler deploy` 로 지정했다면 다음과 같이 정리하세요.
+
+1. Cloudflare 대시보드의 **Workers & Pages → 해당 Worker → Settings → Builds** 로 이동합니다.
+2. 이 저장소에 연결된 Workers Builds 자동 배포를 비활성화하거나 Git 연결을 해제합니다. 특히 Deploy command `npx wrangler deploy` 를 실행하지 않도록 합니다.
+3. Cloudflare Tunnel 의 Public Hostname 은 VPS 앱으로 연결합니다: **HTTP → `http://app:8080`** (Tunnel 을 Docker Compose 의 `cloudflared` 서비스로 실행하는 경우).
+4. 앱 빌드/이미지 배포는 GitHub Actions 의 `.github/workflows/deploy.yml` 이 담당합니다. GHCR 이미지 빌드는 main push 시 실행되며, VPS 자동 재기동은 Repository Variable `ENABLE_VPS_DEPLOY=true` 일 때만 실행됩니다.
+
+> `wrangler.jsonc` 를 다시 추가하거나 `assets.directory` 를 지정하는 방식은 이 문제의 해결책이 아닙니다. 정적 파일 배포 오류만 없앨 뿐 Spring Boot 서버를 실행하지 않습니다.
