@@ -26,6 +26,16 @@ jobs:
           chmod +x ./gradlew
           java -version
           ./gradlew --no-daemon clean test bootJar
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-test-reports
+          path: |
+            build/reports/tests/test/**
+            build/test-results/test/**
+          if-no-files-found: warn
+          retention-days: 7
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GHCR
