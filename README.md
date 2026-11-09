@@ -54,7 +54,7 @@ Gradle Wrapper(8.14.3)가 포함되어 있어 별도 Gradle 설치가 필요 없
 
 ## 3-1. Cloudflare 로 배포
 - **VPS + Docker Compose + Cloudflare Tunnel (영구 데이터, 권장)**: GitHub Actions 가 이미지를 빌드해 VPS 에 배포합니다 → [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md). 로컬/수동 실행은 `docker compose --profile named up -d --build`.
-- **Cloudflare Containers (Workers Builds, 시연용)**: Deploy command 를 **`npx wrangler deploy`** 로 설정합니다(`wrangler.jsonc` + `cloudflare/worker.js`). `./gradlew` 를 Deploy command 로 쓰면 빌드 환경에 Java 가 없어 실패합니다 → [docs/DEPLOY-CLOUDFLARE-CONTAINERS.md](docs/DEPLOY-CLOUDFLARE-CONTAINERS.md).
+- **Cloudflare Free 플랜**: Workers Builds 에서 이 저장소를 `npx wrangler deploy` 로 배포하지 마세요. 이 프로젝트는 정적 사이트/Worker 가 아니라 Spring Boot JVM 서버입니다. Cloudflare 는 VPS 의 앱을 Tunnel 로 공개하는 용도로만 사용합니다 → [배포 설정](docs/DEPLOY-CLOUDFLARE.md).
 
 ## 3. ngrok 으로 호스팅
 ```bash
