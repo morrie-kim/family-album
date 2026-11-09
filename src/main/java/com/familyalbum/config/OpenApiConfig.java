@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Profile;
 public class OpenApiConfig {
 
     @Bean
-    OpenAPI familyAlbumOpenApi() {
+    public OpenAPI familyAlbumOpenApi() {
         return new OpenAPI()
                 .info(new Info()
                         .title("가족앨범 API")
