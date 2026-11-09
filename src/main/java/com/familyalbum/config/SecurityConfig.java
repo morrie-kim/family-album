@@ -25,7 +25,7 @@ public class SecurityConfig {
      */
     @Bean
     @Order(1)
-    SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**")
             .csrf(csrf -> csrf.disable())
@@ -42,7 +42,7 @@ public class SecurityConfig {
     /** 화면(Thymeleaf): 세션 폼 로그인 + CSRF(기본 활성) */
     @Bean
     @Order(2)
-    SecurityFilterChain webChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain webChain(HttpSecurity http) throws Exception {
         http
             .authorizeHttpRequests(a -> {
                 a.requestMatchers("/login", "/signup", "/css/**", "/js/**", "/error").permitAll();
@@ -63,7 +63,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    PasswordEncoder passwordEncoder() {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 }
