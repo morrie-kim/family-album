@@ -21,6 +21,5 @@ COPY --from=build --chown=app:app /app.jar /app/app.jar
 ENV SPRING_PROFILES_ACTIVE=prod \
     PHOTO_STORAGE_ROOT=/data/photos \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
-VOLUME ["/data/photos"]
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

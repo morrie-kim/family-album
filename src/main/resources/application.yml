@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
+  address: 0.0.0.0
   # ngrok 등 리버스 프록시 뒤에서 X-Forwarded-* 를 신뢰해 https 리다이렉트/URL 생성이 올바르게 동작
   forward-headers-strategy: framework
   tomcat:

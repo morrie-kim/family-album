@@ -4,7 +4,7 @@
 단일 Spring Boot 서버(화면 + REST API)이며 구글 포토에서 사진을 가져올 수 있습니다.
 
 - Java 24, Spring Boot 3.5.x, Spring MVC + Thymeleaf, Spring Data JPA, Spring Security(세션 로그인 + CSRF)
-- DB: H2(개발, 기본) / PostgreSQL(`prod` 프로파일) · 사진 파일: 로컬 디스크 `data/photos/{familyId}/{uuid}.ext`
+- DB: H2(개발, 기본) / PostgreSQL(`prod` 프로파일) · 사진 파일: PostgreSQL `photo_content` 테이블(bytea). 기존 로컬 파일은 호환을 위해 fallback 지원
 
 ## 실행
 ```bash
@@ -52,9 +52,31 @@ Gradle Wrapper(8.14.3)가 포함되어 있어 별도 Gradle 설치가 필요 없
 - **‘테스트’ 게시 상태의 앱은 refresh token 이 7일 뒤 만료**됩니다(구글 정책). 만료되면 앱이 연결을 지우고 “다시 연결해 주세요”를 안내합니다. 오래 쓰려면 동의 화면을 *프로덕션*으로 게시하세요(민감 스코프는 구글 검증이 필요할 수 있고, 검증 전에는 “확인되지 않은 앱” 경고와 사용자 수 제한이 있습니다).
 - 가져온 사진의 HEIC 등 일부 형식은 서버 허용 형식(JPEG/PNG/WEBP/GIF/HEIC)에 따라 거절될 수 있습니다.
 
-## 3-1. Cloudflare 로 배포
-- **VPS + Docker Compose + Cloudflare Tunnel (영구 데이터, 권장)**: GitHub Actions 가 이미지를 빌드해 VPS 에 배포합니다 → [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md). 로컬/수동 실행은 `docker compose --profile named up -d --build`.
-- **Cloudflare Free 플랜**: Workers Builds 에서 이 저장소를 `npx wrangler deploy` 로 배포하지 마세요. 이 프로젝트는 정적 사이트/Worker 가 아니라 Spring Boot JVM 서버입니다. Cloudflare 는 VPS 의 앱을 Tunnel 로 공개하는 용도로만 사용합니다 → [배포 설정](docs/DEPLOY-CLOUDFLARE.md).
+## 3-1. Render 무료 배포 (권장)
+
+Render Web Service(Docker, Free)와 Render PostgreSQL(Free)만 사용합니다. 별도 Neon, Cloudflare, 외부 파일 저장소는 필요하지 않습니다.
+
+1. Render 대시보드에서 PostgreSQL을 생성합니다(Free, 1GB).
+2. GitHub 저장소를 연결해 Web Service를 생성하고 Runtime은 Docker, Branch는 `main`, Plan은 Free로 선택합니다. 저장소의 `render.yaml` Blueprint를 사용해도 됩니다.
+3. Web Service 환경변수에 다음 값을 설정합니다.
+   - `SPRING_PROFILES_ACTIVE=prod`
+   - `DB_URL=jdbc:postgresql://<내부 호스트>:5432/<DB명>`
+   - `DB_USERNAME`, `DB_PASSWORD`: Render PostgreSQL 접속 정보
+   - `APP_BASE_URL=https://<Render 서비스 주소>`
+   - `ALLOW_NEW_FAMILY=true` (최초 가족 생성 후 보안을 위해 `false`로 변경 권장)
+   - Google 포토 연동 시 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY`
+4. Health Check Path는 `/login`으로 설정합니다. 배포 후 Render 서비스 주소로 접속해 가족 계정을 생성합니다.
+5. Google OAuth를 사용한다면 Google Cloud Console의 승인된 리디렉션 URI를 `https://<Render 서비스 주소>/google/callback`으로 등록합니다.
+
+사진 바이너리는 PostgreSQL에 저장하므로 Web Service가 잠들거나 재시작되어도 DB가 유지되는 동안 사진을 읽을 수 있습니다. 기존 VPS의 로컬 사진 파일은 기존 경로에서 읽도록 호환 처리했으며, Render 신규 DB로 자동 이전되지는 않습니다.
+
+> **무료 플랜 제약을 반드시 확인하세요.** Free Web Service는 15분간 요청이 없으면 sleep 상태가 되고 첫 요청의 cold start가 발생할 수 있습니다. Free PostgreSQL은 1GB이며 생성 후 30일에 만료됩니다. 만료 후 14일 grace period가 지나면 DB가 삭제되고 무료 DB 백업도 제공되지 않습니다. 따라서 계정·폴더·사진·월드컵 데이터가 모두 사라질 수 있으므로 필요한 데이터는 만료 전에 직접 백업해야 합니다. 사진을 DB에 저장하므로 1GB 한도를 빠르게 소진할 수 있습니다.
+
+자세한 단계와 환경변수는 [docs/DEPLOY-RENDER.md](docs/DEPLOY-RENDER.md)를 참고하세요.
+
+## 3-2. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
+
+기존 Docker Compose + PostgreSQL + Cloudflare Tunnel 구성은 `docker-compose.yml`과 [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md)를 참고하세요. 현재 GitHub Actions는 CI 테스트/빌드만 수행하며 VPS 자동 배포는 하지 않습니다.
 
 ## 3. ngrok 으로 호스팅
 ```bash

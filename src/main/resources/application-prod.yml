@@ -1,5 +1,6 @@
 # 운영: SPRING_PROFILES_ACTIVE=prod
-# ddl-auto=validate 이므로 Flyway/Liquibase 등으로 스키마를 먼저 관리해야 합니다.
+# 무료 Render 환경은 별도 마이그레이션 도구 없이 신규 DB를 구성하므로 update를 사용합니다.
+# 스키마 변경 후에는 백업/검증을 권장합니다.
 server:
   servlet:
     session:
@@ -12,7 +13,7 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
   thymeleaf:
     cache: true
 
