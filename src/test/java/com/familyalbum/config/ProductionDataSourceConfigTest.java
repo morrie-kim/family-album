@@ -26,6 +26,12 @@ class ProductionDataSourceConfigTest {
     }
 
     @Test
+    void preservesJdbcH2UrlForProdProfileTests() {
+        String url = "jdbc:h2:mem:swagger-test;MODE=PostgreSQL";
+        assertEquals(url, ProductionDataSourceConfig.toJdbcUrl(url));
+    }
+
+    @Test
     void rejectsUnsupportedUrl() {
         assertThrows(IllegalArgumentException.class,
                 () -> ProductionDataSourceConfig.toJdbcUrl("mysql://host/album"));

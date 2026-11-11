@@ -5,7 +5,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.util.Locale;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -16,12 +15,11 @@ import org.springframework.context.annotation.Profile;
  */
 @Configuration
 @Profile("prod")
-@ConditionalOnProperty(name = "DB_URL")
 public class ProductionDataSourceConfig {
 
     @Bean
     public DataSource dataSource(
-            @Value("${DB_URL}") String configuredUrl,
+            @Value("${spring.datasource.url}") String configuredUrl,
             @Value("${DB_USERNAME:}") String username,
             @Value("${DB_PASSWORD:}") String password) {
 
@@ -48,7 +46,7 @@ public class ProductionDataSourceConfig {
         String url = value.trim();
         String lower = url.toLowerCase(Locale.ROOT);
 
-        if (lower.startsWith("jdbc:postgresql://")) {
+        if (lower.startsWith("jdbc:")) {
             return url;
         }
         if (lower.startsWith("postgresql://")) {
