@@ -3,24 +3,12 @@
 ## 구성
 
 - Web Service: Docker, Free
-- PostgreSQL: Render Free PostgreSQL(1GB, 30일 만료)
-- 사진 바이너리: PostgreSQL의 `photo_content` 테이블(`bytea`)
+- 기본 데이터베이스: H2 파일 DB (`/tmp/family-album`)
+- 사진 바이너리: 애플리케이션의 기존 사진 저장 설정 사용
 - 배포: GitHub `main` 브랜치 push 시 Render 자동 배포
-- 외부 저장소: 사용하지 않음
+- 기본 배포에는 PostgreSQL, Neon, Cloudflare 등 외부 DB가 필요하지 않습니다.
 
-## 1. PostgreSQL 생성
-
-Render 대시보드에서 New → PostgreSQL을 선택하고 Free 플랜으로 생성합니다.
-
-생성 후 **Connect** 정보에서 Internal Database URL의 호스트/DB 이름과 사용자명/비밀번호를 확인합니다. 앱의 `DB_URL`은 JDBC 형식이어야 합니다.
-
-```text
-jdbc:postgresql://<internal-host>:5432/<database-name>
-```
-
-Render가 표시하는 URL이 `postgres://...` 또는 `postgresql://...` 형식이어도 앱이 자동으로 `jdbc:postgresql://...`로 변환합니다. 기존 JDBC URL도 그대로 지원합니다. 사용자명과 비밀번호는 각각 `DB_USERNAME`, `DB_PASSWORD`에 입력하면 됩니다.
-
-## 2. Web Service 생성
+## 1. Web Service 생성
 
 저장소 루트의 `render.yaml`을 사용해 Blueprint로 생성하거나, New → Web Service에서 GitHub 저장소를 직접 연결합니다.
 
@@ -32,19 +20,13 @@ Render가 표시하는 URL이 `postgres://...` 또는 `postgresql://...` 형식�
 | Plan | Free |
 | Health Check Path | `/login` |
 
-Blueprint 사용 시 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_BASE_URL` 값을 입력합니다.
+## 2. 환경변수
 
-## 3. 환경변수
-
-`DB_URL`은 Render 대시보드의 Internal Database URL을 그대로 복사해도 됩니다. 애플리케이션이 `postgres://`, `postgresql://`, `jdbc:postgresql://` 세 형식을 JDBC 형식으로 정규화합니다.
-
+최소한의 기본 배포는 아래 설정으로 동작하며 DB 관련 환경변수는 필요하지 않습니다.
 
 | Key | 값 |
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
-| `DB_URL` | `jdbc:postgresql://<internal-host>:5432/<database-name>` |
-| `DB_USERNAME` | Render PostgreSQL 사용자명 |
-| `DB_PASSWORD` | Render PostgreSQL 비밀번호 |
 | `APP_BASE_URL` | `https://<서비스명>.onrender.com` |
 | `ALLOW_NEW_FAMILY` | 최초 가입 전 `true`, 최초 가족 생성 후 `false` 권장 |
 | `GOOGLE_CLIENT_ID` | Google OAuth 사용 시 |
@@ -53,21 +35,36 @@ Blueprint 사용 시 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_BASE_URL` 값�
 
 Google OAuth를 사용한다면 승인된 redirect URI를 `<APP_BASE_URL>/google/callback`으로 등록합니다.
 
-## 4. 배포 확인
+### PostgreSQL을 나중에 연결하려는 경우
 
-1. Web Service 배포 로그에서 Spring Boot 기동 및 PostgreSQL 연결을 확인합니다.
+기본 H2 대신 PostgreSQL을 사용하려면 Render 환경변수에 다음 값을 추가합니다.
+
+- `DB_URL`: `jdbc:postgresql://<internal-host>:5432/<database-name>` 또는 Render가 제공하는 `postgres://...` URL
+- `DB_USERNAME`: PostgreSQL 사용자명
+- `DB_PASSWORD`: PostgreSQL 비밀번호
+
+DB_URL이 없으면 H2 파일 DB가 자동으로 선택됩니다.
+
+## 3. 배포 확인
+
+1. Render 배포 로그에서 Spring Boot 기동 및 애플리케이션의 `Started FamilyAlbumApplication` 메시지를 확인합니다.
 2. `https://<서비스명>.onrender.com/login`으로 접속합니다.
 3. 첫 가족 계정을 만든 뒤 `ALLOW_NEW_FAMILY=false`로 변경합니다.
-4. 사진 업로드 후 앱을 재시작해도 사진이 조회되는지 확인합니다.
+4. 로그인, 앨범 생성, 사진 업로드/조회 기능을 확인합니다.
 
-## 무료 플랜의 중요한 제한
+## 4. 무료 플랜의 중요한 데이터 보존 제한
 
-- Free Web Service는 15분간 인바운드 요청이 없으면 sleep 상태가 되며, 첫 요청은 cold start가 발생할 수 있습니다.
-- Free PostgreSQL은 1GB이며 생성 후 30일에 만료됩니다. 만료 후 14일 grace period가 지나면 삭제되고 무료 DB 백업은 제공되지 않습니다.
-- DB가 삭제되면 계정, 가족, 폴더, 사진 본문, 월드컵 데이터가 모두 사라집니다. 만료 전에 필요한 데이터를 직접 백업해야 합니다.
-- 사진 본문도 PostgreSQL에 저장하므로 1GB 용량을 고려해 사진 업로드를 관리해야 합니다. 대용량 원본/대량 업로드 용도로는 적합하지 않습니다.
-- Render Free Web Service의 로컬 파일시스템은 영구 저장소가 아닙니다. 신규 사진 저장에는 로컬 파일시스템을 사용하지 않습니다.
+**중요: Render Free Web Service의 파일시스템은 영구 저장소가 아닙니다.**
+
+- 이 기본 구성의 H2 DB 파일은 `/tmp/family-album`에 생성됩니다.
+- Render Free에서는 재배포, 인스턴스 교체, 재시작 등으로 파일이 사라질 수 있습니다. 따라서 계정, 가족, 앨범, 사진 메타데이터 등 DB 데이터가 유실될 수 있습니다.
+- 사진 파일을 로컬 파일시스템에 저장하는 기능도 동일하게 유실 위험이 있습니다.
+- Render Free Web Service는 15분간 인바운드 요청이 없으면 sleep 상태가 되며, 첫 요청은 cold start가 발생할 수 있습니다.
+- 가족 사진을 장기간 보존하는 실사용 서비스에는 이 H2 + Free 구성은 적합하지 않습니다. 영구 DB와 영구 파일 스토리지를 연결하거나, 주기적인 외부 백업을 별도로 구성해야 합니다.
+- 무료 PostgreSQL을 사용하더라도 무료 DB의 만료/삭제 정책과 백업 부재를 고려해야 합니다.
+
+이 구성은 우선 비용 없이 앱을 기동하고 기능을 검증하기 위한 데모/테스트 배포용입니다.
 
 ## 기존 데이터 이전
 
-기존 VPS의 `photo` 메타데이터와 `/data/photos` 파일은 Render DB로 자동 이전되지 않습니다. 기존 가족 데이터를 옮길 계획이라면 DB 백업/복원과 사진 바이너리 이관을 별도로 진행해야 합니다.
+기존 VPS의 DB와 사진 파일은 Render로 자동 이전되지 않습니다. 기존 데이터를 옮기려면 DB 백업/복원과 사진 파일 이관을 별도로 진행해야 합니다.
