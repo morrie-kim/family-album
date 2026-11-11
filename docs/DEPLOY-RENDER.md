@@ -18,7 +18,7 @@ Render 대시보드에서 New → PostgreSQL을 선택하고 Free 플랜으로 �
 jdbc:postgresql://<internal-host>:5432/<database-name>
 ```
 
-Render가 표시하는 URL이 `postgresql://...` 형식이라면 그대로 넣지 말고 `jdbc:` 접두사를 붙여 JDBC URL로 입력합니다. 사용자명과 비밀번호는 각각 `DB_USERNAME`, `DB_PASSWORD`에 입력합니다.
+Render가 표시하는 URL이 `postgres://...` 또는 `postgresql://...` 형식이어도 앱이 자동으로 `jdbc:postgresql://...`로 변환합니다. 기존 JDBC URL도 그대로 지원합니다. 사용자명과 비밀번호는 각각 `DB_USERNAME`, `DB_PASSWORD`에 입력하면 됩니다.
 
 ## 2. Web Service 생성
 
@@ -35,6 +35,9 @@ Render가 표시하는 URL이 `postgresql://...` 형식이라면 그대로 넣�
 Blueprint 사용 시 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `APP_BASE_URL` 값을 입력합니다.
 
 ## 3. 환경변수
+
+`DB_URL`은 Render 대시보드의 Internal Database URL을 그대로 복사해도 됩니다. 애플리케이션이 `postgres://`, `postgresql://`, `jdbc:postgresql://` 세 형식을 JDBC 형식으로 정규화합니다.
+
 
 | Key | 값 |
 |---|---|
