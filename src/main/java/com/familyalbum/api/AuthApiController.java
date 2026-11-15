@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.beans.factory.annotation.Qualifier;
 import com.familyalbum.web.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -27,8 +28,8 @@ public class AuthApiController {
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository contextRepository;
 
-    public AuthApiController(AuthenticationManager authenticationManager,
-                             SecurityContextRepository contextRepository) {
+    public AuthApiController(@Qualifier("authenticationManager") AuthenticationManager authenticationManager,
+                             @Qualifier("securityContextRepository") SecurityContextRepository contextRepository) {
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
     }

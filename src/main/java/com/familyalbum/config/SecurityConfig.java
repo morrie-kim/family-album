@@ -2,6 +2,7 @@ package com.familyalbum.config;
 
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -63,9 +64,10 @@ public class SecurityConfig {
      */
     @Bean
     @Order(1)
-    public SecurityFilterChain apiChain(HttpSecurity http, SecurityContextRepository contextRepository,
-                                        CookieCsrfTokenRepository csrfRepository,
-                                        CorsConfigurationSource corsSource) throws Exception {
+    public SecurityFilterChain apiChain(HttpSecurity http,
+                                        @Qualifier("securityContextRepository") SecurityContextRepository contextRepository,
+                                        @Qualifier("csrfTokenRepository") CookieCsrfTokenRepository csrfRepository,
+                                        @Qualifier("corsConfigurationSource") CorsConfigurationSource corsSource) throws Exception {
         CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
         csrfHandler.setCsrfRequestAttributeName(null);
         http
