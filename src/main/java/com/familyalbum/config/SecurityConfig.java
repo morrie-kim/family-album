@@ -33,6 +33,9 @@ public class SecurityConfig {
     @Value("${app.frontend-origin:http://localhost:5173}")
     private String frontendOrigin;
 
+    @Value("${server.servlet.session.cookie.secure:false}")
+    private boolean secureCookie;
+
     @Bean
     SecurityContextRepository securityContextRepository() {
         return new HttpSessionSecurityContextRepository();
@@ -41,7 +44,7 @@ public class SecurityConfig {
     @Bean
     CookieCsrfTokenRepository csrfTokenRepository() {
         CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        repository.setCookieCustomizer(cookie -> cookie.secure(true).sameSite("Lax").path("/"));
+        repository.setCookieCustomizer(cookie -> cookie.secure(secureCookie).sameSite("Lax").path("/"));
         return repository;
     }
 

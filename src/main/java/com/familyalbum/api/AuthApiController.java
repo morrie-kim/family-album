@@ -73,6 +73,5 @@ public class AuthApiController {
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         if (session != null) session.invalidate();
-        response.addHeader("Set-Cookie", "JSESSIONID=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax");
     }
 }
