@@ -143,8 +143,8 @@ cp .env.example .env        # NGROK_DOMAIN, GOOGLE_* 채우기
 
 ### TMDB 설정
 1. [TMDB](https://www.themoviedb.org/) 계정을 만들고 API 설정에서 **API Key (v3 auth)** 를 발급합니다.
-2. 프로젝트 루트 `.env`에 `TMDB_API_KEY=<발급받은 API Key>`를 입력합니다. `.env.example`을 복사해 사용 중이라면 해당 항목만 채우면 됩니다.
-3. `scripts/cloudflare-worker-up.sh`로 Spring Boot를 재시작/배포합니다. 키가 없으면 콘텐츠 검색 API는 503을 반환하며 다른 가족앨범 기능은 계속 사용할 수 있습니다.
+2. 프로젝트 루트 `.env`에 `TMDB_API_KEY=<v3 API Key>` 또는 `TMDB_API_READ_ACCESS_TOKEN=<v4 Read Access Token>` 중 하나를 입력합니다. v4 토큰을 설정한 경우 v3 키보다 우선 사용합니다.
+3. `scripts/cloudflare-worker-up.sh`로 Spring Boot를 재시작/배포합니다. 인증 정보가 없으면 콘텐츠 검색 API는 503을 반환하며 다른 가족앨범 기능은 계속 사용할 수 있습니다. 인증 정보가 잘못되면 TMDB 인증 오류(502)를 안내합니다.
 
 콘텐츠 및 이미지 메타데이터는 TMDB에서 제공하며, OTT 제공 정보는 대한민국 기준입니다. 제공처·시청 가능 여부는 시점에 따라 바뀔 수 있고, TMDB에 등록되지 않은 콘텐츠/서비스는 검색 결과에 나타나지 않을 수 있습니다. 영화의 상태는 TMDB 개봉 상태를 기준으로 표시하므로 실제 영화관의 당일 상영 회차를 의미하지 않습니다.
 
