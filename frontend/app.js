@@ -16,7 +16,8 @@
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[c]));
-  let toastTimer;\n  const toast = message => {
+  let toastTimer;
+  const toast = message => {
     toastEl.textContent = message;
     toastEl.classList.add("show");
     clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2800);

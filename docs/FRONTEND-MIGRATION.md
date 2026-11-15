@@ -24,7 +24,8 @@
 ## 배포 환경변수
 
 백엔드:
-- `FRONTEND_ORIGIN=https://www.example.com`\n- `FRONTEND_URL=https://www.example.com`
+- `FRONTEND_ORIGIN=https://www.example.com`
+- `FRONTEND_URL=https://www.example.com`
 - `APP_BASE_URL=https://api.example.com`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY` (선택)
 

@@ -35,7 +35,8 @@ spring:
 
 app:
   # Pages SPA origin. Set to the exact HTTPS frontend origin in production.
-  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}\n  frontend-url: ${FRONTEND_URL:}
+  frontend-origin: ${FRONTEND_ORIGIN:http://localhost:5173}
+  frontend-url: ${FRONTEND_URL:}
   storage:
     root: ${PHOTO_STORAGE_ROOT:./data/photos}
   upload:

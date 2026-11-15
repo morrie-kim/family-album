@@ -152,7 +152,8 @@ com.familyalbum
  ├─ service     AuthService, FolderService, FolderAccessService, PhotoService, PhotoUploadService, FamilyService, FileStorage
  ├─ worldcup    Worldcup/Entry/Play/Match, Bracket, WorldcupService, WorldcupDtos
  ├─ google      GoogleOAuthClient, GooglePickerClient, GoogleConnectionService, GoogleImportService, TokenCipher
- ├─ frontend    Cloudflare Pages 정적 SPA (HTML/CSS/JavaScript)\n ├─ web         기존 Thymeleaf 화면 컨트롤러(Album/Folder/Google/Worldcup/Auth), WebAdvice, Dtos
+ ├─ frontend    Cloudflare Pages 정적 SPA (HTML/CSS/JavaScript)
+ ├─ web         기존 Thymeleaf 화면 컨트롤러(Album/Folder/Google/Worldcup/Auth), WebAdvice, Dtos
  └─ api         REST(Account/Folder/Photo) + ApiExceptionHandler
 ```
 
