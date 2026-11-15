@@ -283,9 +283,26 @@
     const vodEl=document.getElementById("vodResults");
     const liveEl=document.getElementById("liveResults");
     const message=document.getElementById("contentMessage");
-    const renderLinks=links=>(links||[]).map(link=>`<a class="content-ott-link" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">
-      <b>${esc(link.name)}</b><span>${esc(link.description)}</span><i>검색 결과 열기 ↗</i>
-    </a>`).join("") || '<p class="muted">표시할 검색 링크가 없습니다.</p>';
+    const OTT_BRANDS = [
+      { match: /넷플릭스|netflix/i, key: "netflix", mark: "N", label: "Netflix" },
+      { match: /티빙|tving/i, key: "tving", mark: "T", label: "TVING" },
+      { match: /웨이브|wavve/i, key: "wavve", mark: "W", label: "Wavve" },
+      { match: /디즈니|disney/i, key: "disney", mark: "D+", label: "Disney+" },
+      { match: /쿠팡|coupang/i, key: "coupang", mark: "cp", label: "Coupang Play" },
+      { match: /왓챠|watcha/i, key: "watcha", mark: "W", label: "WATCHA" },
+      { match: /apple/i, key: "apple", mark: "tv+", label: "Apple TV+" },
+      { match: /라프텔|laftel/i, key: "laftel", mark: "L", label: "Laftel" }
+    ];
+    const ottBrand = name => OTT_BRANDS.find(brand => brand.match.test(name || "")) || {
+      key: "default", mark: "▶", label: name || "OTT"
+    };
+    const renderLinks=links=>(links||[]).map(link=>{
+      const brand=ottBrand(link.name);
+      return `<a class="content-ott-link" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">
+        <span class="content-ott-brand content-ott-brand-${brand.key}" aria-hidden="true">${brand.mark}</span>
+        <span class="content-ott-copy"><b>${esc(link.name)}</b><span>${esc(link.description)}</span><i>검색 결과 열기 ↗</i></span>
+      </a>`;
+    }).join("") || '<p class="muted">표시할 검색 링크가 없습니다.</p>';
     // 이전 버전 백엔드가 배포된 상태에서도 OTT 링크 영역이 비지 않도록 브라우저에서 보완한다.
     // 최신 백엔드가 정상 배열을 반환하면 서버 결과를 우선 사용한다.
     const fallbackOttLinks=(query, providers, viewingType)=>providers.map(provider=>({
