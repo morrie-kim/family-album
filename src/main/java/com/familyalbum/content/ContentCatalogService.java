@@ -36,6 +36,7 @@ public class ContentCatalogService {
         if ("person".equals(mode)) {
             JsonNode people = get("/search/person", Map.of("query", q, "include_adult", "false"));
             for (JsonNode person : nodes(people, "results").stream().limit(5).toList()) {
+                if (items.size() >= 12) break;
                 long id = person.path("id").asLong();
                 String personName = text(person, "name");
                 JsonNode credits = get("/person/" + id + "/combined_credits", Map.of());
@@ -44,7 +45,7 @@ public class ContentCatalogService {
                 nodes(credits, "crew").forEach(works::add);
                 works.stream().filter(w -> "movie".equals(w.path("media_type").asText()) || "tv".equals(w.path("media_type").asText()))
                     .sorted(Comparator.comparing((JsonNode w) -> date(w)).reversed())
-                    .distinct().limit(10).forEach(w -> {
+                    .distinct().limit(6).forEach(w -> {
                         Map<String,Object> item = enrich(w, w.path("media_type").asText());
                         item.put("matchedPerson", personName);
                         String role = text(w, "character");
