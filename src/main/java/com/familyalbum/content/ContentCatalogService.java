@@ -2,6 +2,7 @@ package com.familyalbum.content;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -66,7 +67,7 @@ public class ContentCatalogService {
 
     private Map<String,Object> enrich(JsonNode node, String type) {
         long id = node.path("id").asLong();
-        JsonNode detail = get("/" + type + "/" + id, Map.of());
+        JsonNode detail = get("/" + type + "/" + id, Map.of("append_to_response", "credits"));
         JsonNode providers = get("/" + type + "/" + id + "/watch/providers", Map.of());
         JsonNode kr = providers.path("results").path("KR");
         String release = type.equals("movie") ? text(detail, "release_date") : text(detail, "first_air_date");
@@ -87,10 +88,8 @@ public class ContentCatalogService {
         out.put("backdropUrl", image(text(detail,"backdrop_path"), "w780"));
         out.put("rating", detail.path("vote_average").isNumber() ? detail.path("vote_average").asDouble() : 0);
         out.put("genres", nodes(detail,"genres").stream().map(g -> text(g,"name")).filter(s -> !s.isBlank()).toList());
-        out.put("cast", nodes(detail,"credits").stream().flatMap(x -> nodes(x,"cast").stream()).limit(0).toList());
         List<Map<String,Object>> cast = new ArrayList<>();
-        JsonNode credits = get("/" + type + "/" + id + "/credits", Map.of());
-        for (JsonNode person : nodes(credits,"cast").stream().limit(8).toList()) {
+        for (JsonNode person : nodes(detail.path("credits"),"cast").stream().limit(8).toList()) {
             cast.add(Map.of("name", text(person,"name"), "role", text(person,"character")));
         }
         out.put("cast", cast);
@@ -122,7 +121,7 @@ public class ContentCatalogService {
     }
 
     private String state(String type, String status, String date) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
         LocalDate release = null;
         try { if (!date.isBlank()) release = LocalDate.parse(date); } catch (Exception ignored) {}
         if (release != null && release.isAfter(today)) return "upcoming";
@@ -153,6 +152,6 @@ public class ContentCatalogService {
     private static String date(JsonNode n) { return first(text(n,"release_date"),text(n,"first_air_date")); }
     private static String image(String path, String size) { return path.isBlank() ? "" : "https://image.tmdb.org/t/p/"+size+path; }
     private static String stateLabel(String state) {
-        return switch(state) { case "airing" -> "방영 중"; case "upcoming" -> "방영/개봉 예정"; case "ended" -> "종영/상영 종료"; default -> "정보 확인 필요"; };
+        return switch(state) { case "airing" -> "방영 중"; case "upcoming" -> "방영/개봉 예정"; case "ended" -> "종영/개봉 완료"; default -> "정보 확인 필요"; };
     }
 }
