@@ -153,8 +153,7 @@ public class ContentCatalogService {
 
     private JsonNode get(String path, Map<String, String> params) {
         UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(BASE + path)
-                .queryParam("key", apiKey)
-                .queryParam("itemPerPage", "10");
+                .queryParam("key", apiKey);
         params.forEach(uri::queryParam);
         try {
             JsonNode response = client.get()
