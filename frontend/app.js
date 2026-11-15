@@ -133,7 +133,7 @@
   }
   async function uploadPhotos(e) {
     const files=[...e.target.files]; if(!files.length)return;
-    const folderId=activeFolder || folders.find(f=>f.canEdit)?.id;
+    const folderId=activeFolder || folders.find(f=>["EDIT","MANAGE"].includes(f.permission))?.id;
     if(!folderId){toast("업로드 권한이 있는 폴더가 없습니다.");return;}
     const description=prompt("사진 설명 (선택)")||"";
     let success=0, failures=[];
@@ -181,7 +181,7 @@
   }
   async function renderGoogle() {
     const status=await request("/api/google/status"); await loadFolders();
-    const writable=folders.filter(f=>f.canEdit);
+    const writable=folders.filter(f=>["EDIT","MANAGE"].includes(f.permission));
     shell("Google Photos",`<section class="panel"><h2>내 구글 포토</h2>
       ${!status.enabled?'<p class="muted">서버에 Google OAuth 설정이 필요합니다.</p><code>'+esc(status.redirectUri)+'</code>':
       !status.connected?'<p class="muted">Google 계정을 연결하면 직접 선택한 사진을 가족 앨범으로 가져올 수 있습니다.</p><button class="btn primary" id="connectGoogle">Google 계정 연결</button>':
