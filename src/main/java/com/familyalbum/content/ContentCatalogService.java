@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -20,11 +21,14 @@ public class ContentCatalogService {
     private static final String BASE = "https://api.themoviedb.org/3";
     private final RestClient client;
     private final String apiKey;
+    private final String readAccessToken;
 
     public ContentCatalogService(RestClient.Builder builder,
-                                 @Value("${app.tmdb.api-key:}") String apiKey) {
+                                 @Value("${app.tmdb.api-key:}") String apiKey,
+                                 @Value("${app.tmdb.read-access-token:}") String readAccessToken) {
         this.client = builder.build();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
+        this.readAccessToken = readAccessToken == null ? "" : readAccessToken.trim();
     }
 
     public Map<String, Object> search(String query, String kind) {
@@ -134,14 +138,37 @@ public class ContentCatalogService {
     }
 
     private JsonNode get(String path, Map<String,String> params) {
-        UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(BASE + path).queryParam("api_key", apiKey).queryParam("language","ko-KR");
+        UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(BASE + path)
+                .queryParam("language", "ko-KR");
+        if (readAccessToken.isBlank()) uri.queryParam("api_key", apiKey);
         params.forEach(uri::queryParam);
-        return client.get().uri(uri.build().encode().toUri()).retrieve().body(JsonNode.class);
+        try {
+            return client.get()
+                    .uri(uri.build().encode().toUri())
+                    .headers(headers -> {
+                        if (!readAccessToken.isBlank()) headers.setBearerAuth(readAccessToken);
+                    })
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                        "TMDB 인증에 실패했습니다. .env의 TMDB_API_KEY 또는 TMDB_API_READ_ACCESS_TOKEN 값을 확인해 주세요.");
+            }
+            if (e.getStatusCode().value() == 429) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "TMDB 요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.");
+            }
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "TMDB 콘텐츠 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        }
     }
 
     private void requireKey() {
-        if (apiKey.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-            "TMDB_API_KEY 설정이 필요합니다. .env에 발급받은 TMDB API 키를 등록해 주세요.");
+        if (apiKey.isBlank() && readAccessToken.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "TMDB 인증 정보가 없습니다. 프로젝트 루트 .env에 TMDB_API_KEY 또는 TMDB_API_READ_ACCESS_TOKEN을 설정해 주세요.");
+        }
     }
     private static List<JsonNode> nodes(JsonNode node, String field) {
         List<JsonNode> out = new ArrayList<>();
