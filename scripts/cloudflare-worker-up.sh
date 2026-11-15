@@ -17,6 +17,13 @@ fi
 : "${FRONTEND_URL:?Set FRONTEND_URL in .env}"
 : "${FRONTEND_ORIGIN:?Set FRONTEND_ORIGIN in .env}"
 
+if [[ -z "${TMDB_API_KEY:-}" && -z "${TMDB_API_READ_ACCESS_TOKEN:-}" ]]; then
+  echo "WARNING: TMDB credentials are not configured. The Content Search menu will return HTTP 503."
+  echo "Set TMDB_API_KEY or TMDB_API_READ_ACCESS_TOKEN in .env before starting."
+else
+  echo "TMDB credentials detected (value hidden)."
+fi
+
 if [[ "$APP_BASE_URL" != "$FRONTEND_URL" || "$APP_BASE_URL" != "$FRONTEND_ORIGIN" ]]; then
   echo "APP_BASE_URL, FRONTEND_URL and FRONTEND_ORIGIN must be the same Worker origin." >&2
   exit 1
