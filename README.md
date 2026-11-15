@@ -1,9 +1,9 @@
 # 가족앨범
 
 가족 구성원이 각자 계정을 만들고, **폴더별로 계정마다 접근 권한을 정해** 사진을 공유하는 서비스.
-단일 Spring Boot 서버(화면 + REST API)이며 구글 포토에서 사진을 가져올 수 있습니다.
+기존 Thymeleaf 화면을 유지하면서 Cloudflare Pages용 JavaScript SPA와 REST API를 병행 제공합니다. 백엔드는 로컬 Spring Boot를 Cloudflare Named Tunnel로 공개할 수 있으며, Google Photos에서 사진을 가져올 수 있습니다.
 
-- Java 24, Spring Boot 3.5.x, Spring MVC + Thymeleaf, Spring Data JPA, Spring Security(세션 로그인 + CSRF)
+- Java 24, Spring Boot 3.5.x, Spring MVC + Thymeleaf(기존 화면 호환), REST API, Spring Data JPA, Spring Security(세션 로그인 + CSRF)
 - DB: H2(개발, 기본) / PostgreSQL(`prod` 프로파일) · 사진 파일: PostgreSQL `photo_content` 테이블(bytea). 기존 로컬 파일은 호환을 위해 fallback 지원
 
 ## 실행
@@ -74,7 +74,22 @@ Render Web Service(Docker, Free)와 Render PostgreSQL(Free)만 사용합니다. 
 
 자세한 단계와 환경변수는 [docs/DEPLOY-RENDER.md](docs/DEPLOY-RENDER.md)를 참고하세요.
 
-## 3-2. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
+## 3-2. Cloudflare Pages + Cloudflare Tunnel
+
+새 프론트엔드는 `frontend/`에 있으며 Cloudflare Pages로 배포합니다. Spring Boot는 로컬 PC에서 실행하고 Cloudflare Named Tunnel이 `api.example.com`을 `localhost:8080`으로 연결합니다.
+
+1. Cloudflare Pages 프로젝트를 생성하고 GitHub 저장소의 Root directory를 `frontend`, Framework preset을 `None`, Build command를 비우고 Output directory를 `.`로 설정합니다.
+2. Pages에 `www.example.com`을 Custom Domain으로 연결합니다.
+3. Cloudflare Zero Trust에서 Named Tunnel을 생성하고 Published Application Route를 `api.example.com` → `http://localhost:8080`으로 설정합니다.
+4. `frontend/config.js`의 `apiBaseUrl`을 `https://api.example.com`으로 변경합니다.
+5. `.env`에 `CLOUDFLARE_TUNNEL_TOKEN`, `APP_BASE_URL=https://api.example.com`, `FRONTEND_URL=https://www.example.com`, `FRONTEND_ORIGIN=https://www.example.com`을 설정합니다.
+6. `./scripts/cloudflare-tunnel-up.sh`로 로컬 백엔드와 터널을 실행합니다.
+
+Google OAuth 승인 리디렉션 URI는 `https://api.example.com/google/callback`입니다. Pages와 API는 동일한 등록 가능 도메인의 HTTPS 서브도메인을 사용해야 세션 쿠키가 브라우저에서 정상 동작합니다. 자세한 내용은 [docs/FRONTEND-MIGRATION.md](docs/FRONTEND-MIGRATION.md) 및 [docs/DEPLOY-CLOUDFLARE-LOCAL.md](docs/DEPLOY-CLOUDFLARE-LOCAL.md)를 참고하세요.
+
+> Cloudflare Pages는 정적 프론트엔드를 제공하고, Tunnel은 로컬 백엔드로 연결합니다. 로컬 PC가 꺼지거나 절전 상태면 API는 중단됩니다. H2/사진 파일은 로컬 디스크에 저장되므로 별도 백업이 필요합니다.
+
+## 3-3. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
 
 기존 Docker Compose + PostgreSQL + Cloudflare Tunnel 구성은 `docker-compose.yml`과 [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md)를 참고하세요. 현재 GitHub Actions는 CI 테스트/빌드만 수행하며 VPS 자동 배포는 하지 않습니다.
 
@@ -122,7 +137,7 @@ cp .env.example .env        # NGROK_DOMAIN, GOOGLE_* 채우기
 | dev (기본) | http://localhost:8080/swagger-ui.html | http://localhost:8080/v3/api-docs |
 | prod | **비노출** (404) | **비노출** (404) |
 
-- API 인증: HTTP Basic(이메일/비밀번호), stateless. 운영에서는 반드시 HTTPS.
+- 기존 REST API는 이제 서버 세션 쿠키 인증을 사용하며 CSRF 토큰(`GET /api/auth/csrf`)을 변경 요청 헤더 `X-XSRF-TOKEN`으로 전달합니다. Pages SPA는 `credentials: include`를 사용합니다. HTTPS 필수.
 - 운영 비노출: `application-prod.yml` 의 springdoc 비활성화 + `OpenApiConfig` `@Profile("!prod")` + 보안 설정에서 문서 경로 허용 조건부.
   회귀 방지 테스트: `SwaggerProdExposureTest`, `SwaggerDevExposureTest`
 - ⚠ `ngrok` 프로파일은 `prod` 가 아니므로 **Swagger 가 공개 URL 로 노출**됩니다. 외부 공개 시 `SPRING_PROFILES_ACTIVE=ngrok,prod` 로 함께 지정하세요(prod 는 `DB_URL` 등 필요).
@@ -137,7 +152,7 @@ com.familyalbum
  ├─ service     AuthService, FolderService, FolderAccessService, PhotoService, PhotoUploadService, FamilyService, FileStorage
  ├─ worldcup    Worldcup/Entry/Play/Match, Bracket, WorldcupService, WorldcupDtos
  ├─ google      GoogleOAuthClient, GooglePickerClient, GoogleConnectionService, GoogleImportService, TokenCipher
- ├─ web         화면 컨트롤러(Album/Folder/Google/Worldcup/Auth), WebAdvice, Dtos
+ ├─ frontend    Cloudflare Pages 정적 SPA (HTML/CSS/JavaScript)\n ├─ web         기존 Thymeleaf 화면 컨트롤러(Album/Folder/Google/Worldcup/Auth), WebAdvice, Dtos
  └─ api         REST(Account/Folder/Photo) + ApiExceptionHandler
 ```
 
