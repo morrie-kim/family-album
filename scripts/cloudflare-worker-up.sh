@@ -135,4 +135,8 @@ echo "Family Album is available at: $APP_BASE_URL"
 echo "Backend tunnel: $BACKEND_ORIGIN"
 echo "Keep this terminal and your Mac running. Quick Tunnel URL changes after restart."
 echo "Logs: $APP_LOG and $TUNNEL_LOG"
-wait "$APP_PID"
+if [[ -n "$APP_PID" ]]; then
+  wait "$APP_PID"
+else
+  wait "$TUNNEL_PID"
+fi
