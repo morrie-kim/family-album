@@ -128,7 +128,8 @@ public class ContentCatalogService {
         if (release != null && release.isAfter(today)) return "upcoming";
         if ("movie".equals(type)) return release == null ? "unknown" : "ended";
         if ("Ended".equals(status) || "Canceled".equals(status)) return "ended";
-        if ("Returning Series".equals(status) || "In Production".equals(status) || "Planned".equals(status)) return "airing";
+        if ("Planned".equals(status) || "In Production".equals(status)) return "upcoming";
+        if ("Returning Series".equals(status)) return "airing";
         return release == null ? "unknown" : "ended";
     }
 
