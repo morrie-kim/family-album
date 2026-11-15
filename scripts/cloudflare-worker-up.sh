@@ -17,11 +17,11 @@ fi
 : "${FRONTEND_URL:?Set FRONTEND_URL in .env}"
 : "${FRONTEND_ORIGIN:?Set FRONTEND_ORIGIN in .env}"
 
-if [[ -z "${TMDB_API_KEY:-}" && -z "${TMDB_API_READ_ACCESS_TOKEN:-}" ]]; then
-  echo "WARNING: TMDB credentials are not configured. The Content Search menu will return HTTP 503."
-  echo "Set TMDB_API_KEY or TMDB_API_READ_ACCESS_TOKEN in .env before starting."
+if [[ -z "${KOBIS_API_KEY:-}" ]]; then
+  echo "WARNING: KOBIS_API_KEY is not configured. Movie/actor search will return HTTP 503."
+  echo "Set KOBIS_API_KEY in .env before using Content Search."
 else
-  echo "TMDB credentials detected (value hidden)."
+  echo "KOBIS API credentials detected (value hidden)."
 fi
 
 if [[ "$APP_BASE_URL" != "$FRONTEND_URL" || "$APP_BASE_URL" != "$FRONTEND_ORIGIN" ]]; then
