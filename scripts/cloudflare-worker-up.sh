@@ -47,8 +47,22 @@ TUNNEL_LOG="./data/cloudflared-quick-tunnel.log"
 APP_PID=""
 TUNNEL_PID=""
 
+backend_healthy() {
+  curl -fsS "http://127.0.0.1:$PORT/api/auth/csrf" >/dev/null 2>&1
+}
+
+port_in_use() {
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1
+  elif command -v nc >/dev/null 2>&1; then
+    nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
+
 cleanup() {
-  echo "Stopping local Family Album services..."
+  echo "Stopping services started by this script..."
   [[ -n "$TUNNEL_PID" ]] && kill "$TUNNEL_PID" 2>/dev/null || true
   [[ -n "$APP_PID" ]] && kill "$APP_PID" 2>/dev/null || true
   [[ -n "$TUNNEL_PID" ]] && wait "$TUNNEL_PID" 2>/dev/null || true
@@ -56,25 +70,39 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "Starting Spring Boot (Java 24)..."
-./gradlew --no-daemon bootRun >"$APP_LOG" 2>&1 &
-APP_PID=$!
+# Reuse an already-running local backend (for example, one launched by IntelliJ).
+# Starting a second embedded-H2 process against the same MVStore file causes error 90020.
+if backend_healthy; then
+  echo "Reusing the healthy Spring Boot server on port $PORT."
+elif port_in_use; then
+  echo "Port $PORT is already occupied, but /api/auth/csrf is not healthy." >&2
+  echo "Stop the other process or configure PORT to a free port, then retry." >&2
+  exit 1
+else
+  echo "Starting Spring Boot (Java 24)..."
+  ./gradlew --no-daemon bootRun >"$APP_LOG" 2>&1 &
+  APP_PID=$!
 
-echo "Waiting for Spring Boot health endpoint..."
-for _ in $(seq 1 90); do
-  if curl -fsS "http://127.0.0.1:$PORT/api/auth/csrf" >/dev/null 2>&1; then
-    break
-  fi
-  if ! kill -0 "$APP_PID" 2>/dev/null; then
-    echo "Spring Boot exited. Recent log:" >&2
-    tail -n 80 "$APP_LOG" >&2
+  echo "Waiting for Spring Boot health endpoint..."
+  for _ in $(seq 1 90); do
+    if backend_healthy; then
+      break
+    fi
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+      if grep -Eqi 'Database may be already in use|The file is locked|90020' "$APP_LOG"; then
+        echo "H2 database is locked by another process. Do not delete albumdb.mv.db or its lock files." >&2
+        echo "Stop the other Family Album/Spring Boot process (IntelliJ or another terminal), then retry." >&2
+      fi
+      echo "Spring Boot exited. Recent log:" >&2
+      tail -n 80 "$APP_LOG" >&2
+      exit 1
+    fi
+    sleep 2
+  done
+  if ! backend_healthy; then
+    echo "Spring Boot did not become healthy. Check $APP_LOG" >&2
     exit 1
   fi
-  sleep 2
-done
-if ! curl -fsS "http://127.0.0.1:$PORT/api/auth/csrf" >/dev/null 2>&1; then
-  echo "Spring Boot did not become healthy. Check $APP_LOG" >&2
-  exit 1
 fi
 
 echo "Starting temporary Cloudflare Quick Tunnel..."
