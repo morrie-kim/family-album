@@ -270,7 +270,7 @@
         <p id="contentMessage" class="muted">검색어를 입력해 주세요. 배우·출연진을 선택하면 출연 작품도 찾을 수 있습니다.</p>
       </section>
       <div id="contentResults" class="content-grid"></div>
-      <p class="content-attribution">콘텐츠 및 이미지 정보 제공: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. OTT 제공 정보는 대한민국 기준이며 변동될 수 있습니다.</p>`,"contents");
+      <p class="content-attribution">콘텐츠 및 이미지 정보 제공: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. 이 서비스는 TMDB의 보증·인증을 받지 않았습니다. OTT 정보는 국내 구독·대여·구매 기준이며, 실시간 방송 편성 여부를 보장하지 않습니다.</p>`,"contents");
     let results=[];
     const resultEl=document.getElementById("contentResults");
     const message=document.getElementById("contentMessage");
