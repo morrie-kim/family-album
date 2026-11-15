@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 public class WorldcupApiController {
 
     public record CreateRequest(@NotBlank @Size(max=100) String title, String mode, String labels,
-                                Long folderId, List<Long> photoIds, String query, List<String> imageIds) {}
+                                Long folderId, List<Long> photoIds, String query, List<String> imageIds,
+                                List<ImageGroupRequest> imageGroups) {}
+    public record ImageGroupRequest(String category, String query, List<String> imageIds) {}
     public record StartRequest(int rounds) {}
     public record PickRequest(Long winnerId) {}
 
@@ -38,6 +40,10 @@ public class WorldcupApiController {
     public Map<String, Long> create(@AuthenticationPrincipal AppPrincipal me, @Valid @RequestBody CreateRequest r) {
         Long id = switch (r.mode() == null ? "text" : r.mode()) {
             case "photo" -> service.createFromPhotos(me, r.title(), r.folderId(), r.photoIds());
+            case "web-groups" -> service.createFromWebGroups(me, r.title(),
+                    r.imageGroups() == null ? List.of() : r.imageGroups().stream()
+                            .map(g -> new WorldcupService.WebImageGroup(g.category(), g.query(), g.imageIds()))
+                            .toList());
             case "web" -> service.createFromWeb(me, r.title(), r.query(), r.imageIds());
             default -> service.createFromLabels(me, r.title(), r.labels());
         };
