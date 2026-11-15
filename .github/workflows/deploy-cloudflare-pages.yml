@@ -1,18 +1,21 @@
-name: Deploy Cloudflare Pages (manual)
+name: Validate Cloudflare Worker
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Deploy frontend to Cloudflare Pages
-        run: npx wrangler@4 pages deploy frontend --project-name family-album-web --branch main
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Check Worker JavaScript
+        run: node --check src/worker/index.js
+      - name: Check local startup script
+        run: bash -n scripts/cloudflare-worker-up.sh
+      - name: Validate Wrangler bundle
+        run: npx --yes wrangler@4 deploy --dry-run

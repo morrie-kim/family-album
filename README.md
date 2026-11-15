@@ -74,20 +74,20 @@ Render Web Service(Docker, Free)와 Render PostgreSQL(Free)만 사용합니다. 
 
 자세한 단계와 환경변수는 [docs/DEPLOY-RENDER.md](docs/DEPLOY-RENDER.md)를 참고하세요.
 
-## 3-2. Cloudflare Pages + Cloudflare Tunnel
+## 3-2. Cloudflare Workers + Quick Tunnel (도메인 구매 없이)
 
-새 프론트엔드는 `frontend/`에 있으며 Cloudflare Pages로 배포합니다. Spring Boot는 로컬 PC에서 실행하고 Cloudflare Named Tunnel이 `api.example.com`을 `localhost:8080`으로 연결합니다.
+별도 도메인 없이 기존 Worker 주소 `https://family-album.nhacker7k.workers.dev`를 사용합니다. Worker Static Assets가 `frontend/` SPA를 제공하고, `/api/*`와 Google OAuth callback을 로컬 Spring Boot로 프록시합니다. 백엔드는 Cloudflare Quick Tunnel로 연결합니다.
 
-1. Cloudflare Pages 프로젝트를 생성하고 GitHub 저장소의 Root directory를 `frontend`, Framework preset을 `None`, Build command를 비우고 Output directory를 `.`로 설정합니다.
-2. Pages에 `www.example.com`을 Custom Domain으로 연결합니다.
-3. Cloudflare Zero Trust에서 Named Tunnel을 생성하고 Published Application Route를 `api.example.com` → `http://localhost:8080`으로 설정합니다.
-4. `frontend/config.js`의 `apiBaseUrl`을 `https://api.example.com`으로 변경합니다.
-5. `.env`에 `CLOUDFLARE_TUNNEL_TOKEN`, `APP_BASE_URL=https://api.example.com`, `FRONTEND_URL=https://www.example.com`, `FRONTEND_ORIGIN=https://www.example.com`을 설정합니다.
-6. `./scripts/cloudflare-tunnel-up.sh`로 로컬 백엔드와 터널을 실행합니다.
+1. Cloudflare에 `family-album` Worker를 생성하고 JDK 24, Node.js/npm, cloudflared를 로컬 Mac에 설치합니다.
+2. Cloudflare API Token(Workers Scripts: Edit)과 Account ID를 확인합니다.
+3. `.env.example`을 `.env`로 복사하고 `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` 및 Google OAuth 설정을 입력합니다.
+4. `APP_BASE_URL`, `FRONTEND_URL`, `FRONTEND_ORIGIN`을 모두 `https://family-album.nhacker7k.workers.dev`로 설정합니다.
+5. `./scripts/cloudflare-worker-up.sh`를 실행하면 Spring Boot 시작, Quick Tunnel 생성, 임시 백엔드 주소를 사용한 Worker 배포를 수행합니다.
+6. Google OAuth 승인 리디렉션 URI는 `https://family-album.nhacker7k.workers.dev/google/callback`입니다.
 
-Google OAuth 승인 리디렉션 URI는 `https://api.example.com/google/callback`입니다. Pages와 API는 동일한 등록 가능 도메인의 HTTPS 서브도메인을 사용해야 세션 쿠키가 브라우저에서 정상 동작합니다. 자세한 내용은 [docs/FRONTEND-MIGRATION.md](docs/FRONTEND-MIGRATION.md) 및 [docs/DEPLOY-CLOUDFLARE-LOCAL.md](docs/DEPLOY-CLOUDFLARE-LOCAL.md)를 참고하세요.
+자세한 내용은 [docs/DEPLOY-CLOUDFLARE-LOCAL.md](docs/DEPLOY-CLOUDFLARE-LOCAL.md)를 참고하세요.
 
-> Cloudflare Pages는 정적 프론트엔드를 제공하고, Tunnel은 로컬 백엔드로 연결합니다. 로컬 PC가 꺼지거나 절전 상태면 API는 중단됩니다. H2/사진 파일은 로컬 디스크에 저장되므로 별도 백업이 필요합니다.
+> Quick Tunnel은 테스트용 임시 주소이며 재시작할 때마다 URL이 변경됩니다. Mac이 켜져 있어야 API가 동작합니다. H2/사진은 로컬 디스크에 저장되므로 백업이 필요합니다. 실제 가족 사진을 장기간 보관하는 운영 환경에는 고정 도메인과 Named Tunnel 또는 상시 서버를 권장합니다.
 
 ## 3-3. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
 

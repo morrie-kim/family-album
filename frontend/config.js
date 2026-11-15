@@ -1,4 +1,4 @@
-// 배포 환경의 API 도메인으로 변경하세요.
+// Worker가 프론트엔드와 API를 같은 Origin에서 제공하므로 상대 경로를 사용합니다.
 window.FAMILY_ALBUM_CONFIG = {
-  apiBaseUrl: "https://api.example.com"
+  apiBaseUrl: ""
 };

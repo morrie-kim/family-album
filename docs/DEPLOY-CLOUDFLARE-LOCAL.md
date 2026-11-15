@@ -1,90 +1,101 @@
-# Cloudflare Pages + Cloudflare Tunnel 배포
+# Cloudflare Workers + Quick Tunnel 배포 (도메인 구매 없이)
 
 ## 목표 구조
 
-- Frontend: Cloudflare Pages, `https://www.example.com`
-- Backend: 로컬 Spring Boot, `http://localhost:8080`
-- API 공개 주소: Cloudflare Named Tunnel, `https://api.example.com`
-- DB/사진: 로컬 `./data` 디렉터리 (백업 필요)
+- 프론트엔드: `https://family-album.nhacker7k.workers.dev`
+- API: 동일한 Worker Origin의 `/api/*`
+- Google OAuth callback: `https://family-album.nhacker7k.workers.dev/google/callback`
+- API 백엔드: 로컬 Spring Boot `http://127.0.0.1:8080`
+- 백엔드 공개 연결: Cloudflare Quick Tunnel의 임시 `*.trycloudflare.com` 주소
+- DB/사진: 로컬 `./data` 디렉터리
 
-## 1. Pages 배포
+Worker가 정적 SPA를 제공하고 `/api/*` 및 OAuth callback만 Quick Tunnel을 통해 로컬 Spring Boot로 프록시합니다. 브라우저는 항상 Worker 주소만 호출하므로 세션/CSRF 쿠키가 동일 Origin에 유지됩니다.
 
-1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git.
-2. `morrie-kim/family-album` 저장소, `main` 브랜치를 선택합니다.
-3. Framework preset은 None으로 설정합니다.
-4. Root directory를 `frontend`로 지정합니다.
-5. Build command는 비워두고 Build output directory는 `.`로 설정합니다.
-6. 프로젝트 생성 후 Custom Domains에서 `www.example.com`을 연결합니다.
-7. 저장소의 `frontend/config.js`에서 API 주소를 `https://api.example.com`으로 맞춥니다.
+> **중요:** Quick Tunnel은 개발·테스트용 임시 터널입니다. URL은 실행할 때마다 바뀌고, 실행 중인 Mac이 꺼지거나 스크립트를 종료하면 서비스가 중단됩니다. Cloudflare도 운영 트래픽에는 안정적인 Named Tunnel을 권장합니다. 현재 별도 도메인이 없으므로 도메인 구매 없이 가능한 테스트 구성을 사용합니다.
 
-Pages가 `frontend/` 폴더만 정적 배포하므로 Java 소스나 비밀키는 공개되지 않습니다.
+## 1. 사전 준비
 
-## 2. Named Tunnel
+1. Cloudflare 계정에 Worker `family-album`이 생성되어 있어야 합니다. 주소가 `https://family-album.nhacker7k.workers.dev`인지 확인합니다.
+2. macOS에 JDK 24, Node.js/npm, cloudflared를 설치합니다.
+   ```bash
+   brew install cloudflared
+   java -version
+   node --version
+   cloudflared --version
+   ```
+3. Cloudflare Dashboard > My Profile > API Tokens에서 토큰을 생성합니다. 권한은 해당 계정의 **Workers Scripts: Edit**가 필요합니다.
+4. Cloudflare Dashboard > Workers & Pages > Overview에서 Account ID를 확인합니다.
 
-1. Cloudflare Dashboard → Zero Trust → Networks → Tunnels에서 Named Tunnel을 생성합니다.
-2. macOS에 `brew install cloudflared`로 설치합니다.
-3. Tunnel의 Published Application Route를 추가합니다.
-   - Hostname: `api.example.com`
-   - Service: `http://localhost:8080`
-4. Dashboard가 제공하는 Tunnel Token을 복사합니다.
+## 2. 환경변수
 
-## 3. 로컬 환경변수
+저장소 루트에서 실행합니다.
 
 ```bash
 cp .env.example .env
 ```
 
-`.env`:
+`.env`에 다음 값을 설정합니다.
 
 ```dotenv
-CLOUDFLARE_TUNNEL_TOKEN=실제_Tunnel_Token
-APP_BASE_URL=https://api.example.com
-FRONTEND_URL=https://www.example.com
-FRONTEND_ORIGIN=https://www.example.com
+CLOUDFLARE_API_TOKEN=실제_API_Token
+CLOUDFLARE_ACCOUNT_ID=Cloudflare_Account_ID
+APP_BASE_URL=https://family-album.nhacker7k.workers.dev
+FRONTEND_URL=https://family-album.nhacker7k.workers.dev
+FRONTEND_ORIGIN=https://family-album.nhacker7k.workers.dev
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_TOKEN_KEY=
 ALLOW_NEW_FAMILY=true
 ```
 
-Google Photos를 사용한다면 Google Cloud Console에 다음 redirect URI를 등록합니다.
+API Token과 Google Secret은 GitHub나 채팅에 올리지 마세요. `.env`는 Git에서 제외됩니다.
+
+## 3. Google Photos OAuth 설정 (선택)
+
+Google Cloud Console의 OAuth 클라이언트 ID(웹 애플리케이션)에서 승인된 리디렉션 URI를 다음과 정확히 일치시킵니다.
 
 ```text
-https://api.example.com/google/callback
+https://family-album.nhacker7k.workers.dev/google/callback
 ```
 
-첫 가족 관리자 계정을 생성한 뒤에는 `ALLOW_NEW_FAMILY=false`로 변경합니다.
+Google Photos Picker API 활성화, OAuth 동의 화면 및 테스트 사용자 설정도 필요합니다. `GOOGLE_TOKEN_KEY`는 `openssl rand -base64 32`로 생성합니다.
 
-## 4. 실행
+## 4. 실행 및 배포
 
 ```bash
-chmod +x scripts/cloudflare-tunnel-up.sh
-./scripts/cloudflare-tunnel-up.sh
+chmod +x scripts/cloudflare-worker-up.sh
+./scripts/cloudflare-worker-up.sh
 ```
 
-이 명령은 Cloudflare Tunnel과 Spring Boot를 실행합니다. 외부에서 `https://api.example.com/api/auth/csrf`가 응답하는지 확인한 다음 Pages 사이트에서 로그인합니다.
+스크립트가 다음을 자동 수행합니다.
 
-## 5. 인증 및 CORS
+1. 로컬 Spring Boot를 `prod,cloudflare-tunnel` 프로파일로 실행합니다.
+2. `/api/auth/csrf`로 백엔드 준비 상태를 확인합니다.
+3. `cloudflared tunnel --url http://127.0.0.1:8080`으로 Quick Tunnel을 시작합니다.
+4. 발급된 임시 `trycloudflare.com` 주소를 읽어 `BACKEND_ORIGIN` 변수로 Worker를 배포합니다.
+5. Worker는 SPA 정적 파일을 제공하고 API/OAuth callback 요청을 로컬 백엔드로 전달합니다.
 
-SPA API는 HTTP Basic이 아니라 서버 세션 쿠키 인증을 사용합니다.
+실행 중인 터미널을 닫지 마세요. 재시작하면 Quick Tunnel URL이 바뀌며 스크립트가 Worker를 다시 배포합니다.
 
-- API 요청은 `credentials: "include"`로 전송
-- `GET /api/auth/csrf`에서 CSRF 토큰 발급
-- POST/PUT/DELETE 요청에 응답의 headerName에 해당하는 CSRF 헤더 포함
-- 백엔드 `FRONTEND_ORIGIN`은 Pages의 정확한 Origin과 일치해야 합니다.
-- Pages와 API는 같은 등록 가능 도메인의 HTTPS 서브도메인으로 운영합니다. `pages.dev`와 별도 도메인을 혼용하면 브라우저의 third-party cookie 정책으로 세션이 차단될 수 있습니다.
+## 5. 최초 계정 및 보안
 
-## 6. 기존 기능과 전환 범위
+1. Worker URL을 열어 첫 가족과 관리자 계정을 생성합니다.
+2. 첫 가족 생성 후 `.env`의 `ALLOW_NEW_FAMILY=false`로 변경하고 스크립트를 재시작합니다.
+3. 초대 코드 가입만 허용되는지 확인합니다.
+4. 가족 계정으로 로그인해 사진 업로드/열람/삭제, 폴더 권한, 가족 초대, 월드컵 기능을 점검합니다.
 
-기존 Thymeleaf 화면은 롤백 및 호환성을 위해 유지됩니다. Pages SPA에는 로그인/회원가입, 사진 목록·업로드·삭제, 폴더 권한, 가족 정보, Google Photos Picker, 월드컵 생성·진행·랭킹 화면이 포함됩니다. 기능별 API는 기존 서비스 계층의 권한 검증을 재사용합니다.
+## 6. 쿠키와 프록시 동작
 
-전환 후에도 실제 사용자 계정으로 다음 시나리오를 검증하세요.
-1. 신규 가족 생성 및 초대 코드 가입
-2. 폴더 권한 없음/보기/올리기 검증
-3. 사진 업로드, 열람, 삭제 권한 검증
-4. Google OAuth 연결, Picker 가져오기, 연결 해제
-5. 텍스트/앨범 사진/인터넷 이미지 월드컵 생성 및 플레이
+- 프론트엔드 API Base URL은 빈 문자열(상대 경로)입니다.
+- Worker는 `/api/*`와 `/google/callback`만 백엔드로 프록시합니다.
+- 브라우저의 `JSESSIONID` 및 CSRF 쿠키를 백엔드로 전달하고, 백엔드의 `Set-Cookie` 응답은 Worker Origin으로 그대로 반환합니다.
+- `APP_BASE_URL`, `FRONTEND_URL`, `FRONTEND_ORIGIN`은 모두 Worker Origin으로 같아야 합니다.
+- Google OAuth callback도 Worker Origin으로 들어온 뒤 백엔드에 전달됩니다.
 
-## 운영상 주의
+## 운영상 한계
 
-- 로컬 PC가 꺼지거나 절전 상태면 API가 중단됩니다.
-- H2와 사진 파일은 로컬 디스크에 저장됩니다. PC 백업 및 디스크 장애 대응이 필요합니다.
-- Tunnel Token, Google OAuth secret, 암호화 키를 Git에 커밋하지 마세요.
-- 로컬 PC를 상시 켜둘 수 없는 운영 환경이라면 동일한 Spring Boot 컨테이너를 VPS/클라우드에 배포하는 것이 좋습니다.
+- Quick Tunnel은 임시 URL이며 SLA/고정 주소를 제공하지 않습니다. URL이 바뀔 때마다 Worker를 재배포해야 합니다.
+- Quick Tunnel 주소를 아는 사람은 로컬 백엔드에 직접 접근할 수 있습니다. 계정 인증을 유지하고 관리자 계정을 보호하세요.
+- Mac이 켜져 있고 네트워크에 연결되어 있어야 합니다. 절전/종료 시 API가 중단됩니다.
+- H2 DB와 사진 파일은 로컬 디스크에 있습니다. `./data`를 별도 저장장치에 정기 백업하세요.
+- 가족 사진 등 실제 데이터를 장기간 보관하는 운영 환경에는 이 구성을 권장하지 않습니다. 고정 도메인과 Named Tunnel 또는 상시 운영 서버로 이전하는 것이 안전합니다.
