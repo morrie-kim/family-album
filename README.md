@@ -74,11 +74,7 @@ Render Web Service(Docker, Free)와 Render PostgreSQL(Free)만 사용합니다. 
 
 자세한 단계와 환경변수는 [docs/DEPLOY-RENDER.md](docs/DEPLOY-RENDER.md)를 참고하세요.
 
-## 3-2. 로컬 Spring Boot + Cloudflare Tunnel
-
-현재 Thymeleaf 화면과 REST API를 그대로 유지하며 로컬 Spring Boot를 Named Tunnel로 공개하는 방법은 [docs/DEPLOY-CLOUDFLARE-LOCAL.md](docs/DEPLOY-CLOUDFLARE-LOCAL.md)를 참고하세요. 이 방식은 화면 HTML도 Spring Boot가 렌더링합니다. 프론트엔드 HTML까지 Cloudflare Pages로 완전히 분리하려면 별도 SPA 전환이 필요합니다.
-
-## 3-3. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
+## 3-2. 기존 VPS + Cloudflare Tunnel 배포 (레거시)
 
 기존 Docker Compose + PostgreSQL + Cloudflare Tunnel 구성은 `docker-compose.yml`과 [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md)를 참고하세요. 현재 GitHub Actions는 CI 테스트/빌드만 수행하며 VPS 자동 배포는 하지 않습니다.
 
