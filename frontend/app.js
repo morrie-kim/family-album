@@ -215,19 +215,147 @@
   }
   async function renderWorldcupNew() {
     await loadFolders();
-    shell("월드컵 만들기",`<form id="wcCreate" class="panel stack"><label>주제<input name="title" maxlength="100" required placeholder="예: 최고의 여행지"></label><label>후보 유형<select name="mode" id="wcMode"><option value="text">텍스트 후보</option><option value="photo">앨범 사진</option><option value="web">인터넷 이미지</option></select></label>
+    shell("월드컵 만들기",`<form id="wcCreate" class="panel stack">
+      <label>월드컵 제목<input name="title" maxlength="100" required placeholder="예: 내가 좋아하는 최고의 것들"></label>
+      <label>후보 유형<select name="mode" id="wcMode"><option value="text">텍스트 후보</option><option value="photo">앨범 사진</option><option value="web">키워드 이미지 후보</option></select></label>
       <label id="labelsField">후보 목록 (줄바꿈으로 구분)<textarea name="labels" rows="8" placeholder="제주도&#10;오사카&#10;파리"></textarea></label>
       <div id="photoField" hidden><label>폴더<select id="wcFolder">${folders.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join("")}</select></label><div id="photoChoices" class="photo-grid"></div></div>
-      <div id="webField" hidden><label>이미지 검색어<input id="imageQuery"></label><button type="button" id="imageSearch" class="btn secondary">이미지 검색</button><div id="imageChoices" class="photo-grid"></div></div>
-      <button class="btn primary">월드컵 만들기</button></form>`,"worldcups");
-    let pickedPhotos=[], pickedImages=[], imageQuery="";
+      <section id="webField" class="keyword-worldcup" hidden>
+        <div class="keyword-toolbar">
+          <label>이미지 검색 키워드<input id="imageKeyword" maxlength="40" placeholder="예: 바다, 강아지, 봄, 자동차"></label>
+          <div class="keyword-actions">
+            <button type="button" id="imageSearchAll" class="btn secondary">4개 분류 이미지 수집</button>
+            <button type="button" id="imageKeywordReset" class="btn ghost">키워드 초기화</button>
+          </div>
+        </div>
+        <p class="muted">키워드를 기준으로 사람·동물·식물·무생물 이미지를 각각 검색합니다. 원하는 분류에서 이미지를 골라 월드컵 후보로 추가하세요.</p>
+        <p id="imageSelectionSummary" class="muted">선택한 이미지 0장 (월드컵은 4~64개 후보)</p>
+        <div id="imageCategoryChoices" class="image-category-list"></div>
+      </section>
+      <button class="btn primary">월드컵 만들기</button>
+    </form>`,"worldcups");
+
+    let pickedPhotos=[];
+    const categories=[
+      {key:"people",label:"사람",icon:"👤",terms:"사람 인물 portrait"},
+      {key:"animals",label:"동물",icon:"🐾",terms:"동물 야생동물 반려동물 animal"},
+      {key:"plants",label:"식물",icon:"🌿",terms:"식물 꽃 나무 plant"},
+      {key:"objects",label:"무생물",icon:"📦",terms:"사물 물건 제품 풍경 object"}
+    ];
+    const imageGroups=Object.fromEntries(categories.map(category=>[category.key,{
+      query:"",results:[],selected:new Set(),error:"",loading:false
+    }]));
     const mode=document.getElementById("wcMode");
-    const change=async()=>{const m=mode.value;document.getElementById("labelsField").hidden=m!=="text";document.getElementById("photoField").hidden=m!=="photo";document.getElementById("webField").hidden=m!=="web";if(m==="photo")await loadPhotoChoices();};
+    const change=async()=>{
+      const m=mode.value;
+      document.getElementById("labelsField").hidden=m!=="text";
+      document.getElementById("photoField").hidden=m!=="photo";
+      document.getElementById("webField").hidden=m!=="web";
+      if(m==="photo")await loadPhotoChoices();
+      if(m==="web")renderImageCategories();
+    };
     mode.onchange=change;
-    async function loadPhotoChoices(){const id=document.getElementById("wcFolder").value;if(!id)return;const page=await request("/api/photos?folderId="+id+"&size=60");document.getElementById("photoChoices").innerHTML=page.content.map(p=>`<label class="pick-photo"><input type="checkbox" value="${p.id}"><img src="${API}/api/photos/${p.id}/file"><span>${esc(p.originalFilename)}</span></label>`).join("");document.querySelectorAll("#photoChoices input").forEach(x=>x.onchange=()=>{pickedPhotos=x.checked?[...pickedPhotos,Number(x.value)]:pickedPhotos.filter(v=>v!==Number(x.value));});}
+
+    async function loadPhotoChoices(){
+      const id=document.getElementById("wcFolder").value;
+      if(!id)return;
+      const page=await request("/api/photos?folderId="+id+"&size=60");
+      document.getElementById("photoChoices").innerHTML=page.content.map(p=>`<label class="pick-photo"><input type="checkbox" value="${p.id}"><img src="${API}/api/photos/${p.id}/file"><span>${esc(p.originalFilename)}</span></label>`).join("");
+      document.querySelectorAll("#photoChoices input").forEach(x=>x.onchange=()=>{
+        pickedPhotos=x.checked?[...pickedPhotos,Number(x.value)]:pickedPhotos.filter(v=>v!==Number(x.value));
+      });
+    }
     document.getElementById("wcFolder").onchange=loadPhotoChoices;
-    document.getElementById("imageSearch").onclick=async()=>{imageQuery=document.getElementById("imageQuery").value;try{const r=await request("/api/images/search?q="+encodeURIComponent(imageQuery));pickedImages=[];document.getElementById("imageChoices").innerHTML=r.results.map(x=>`<label class="pick-photo"><input type="checkbox" value="${esc(x.id)}"><img src="${esc(x.thumbUrl)}"><span>${esc(x.title||x.creator||"이미지")}</span></label>`).join("");document.querySelectorAll("#imageChoices input").forEach(x=>x.onchange=()=>{pickedImages=x.checked?[...pickedImages,x.value]:pickedImages.filter(v=>v!==x.value);});}catch(e){toast(e.message);}};
-    document.getElementById("wcCreate").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget),m=f.get("mode");try{const r=await request("/api/worldcups",{method:"POST",body:json({title:f.get("title"),mode:m,labels:f.get("labels"),folderId:m==="photo"?Number(document.getElementById("wcFolder").value):null,photoIds:pickedPhotos,query:imageQuery,imageIds:pickedImages})});go("worldcups/"+r.id);}catch(err){toast(err.message);}};
+
+    function selectedImageCount(){
+      return categories.reduce((sum,category)=>sum+imageGroups[category.key].selected.size,0);
+    }
+    function renderImageCategories(){
+      const root=document.getElementById("imageCategoryChoices");
+      root.innerHTML=categories.map(category=>{
+        const group=imageGroups[category.key];
+        const cards=group.results.map(item=>{
+          const checked=group.selected.has(item.id);
+          return `<label class="pick-photo image-candidate">
+            <input type="checkbox" data-image-category="${category.key}" value="${esc(item.id)}" ${checked?"checked":""}>
+            <img loading="lazy" src="${esc(item.thumbUrl)}" alt="${esc(item.title||category.label)}" referrerpolicy="no-referrer">
+            <span>${esc(item.title||item.creator||category.label)}</span>
+            <small>${esc(item.provider||"이미지 제공처")} · ${esc(item.license||"라이선스 확인")}</small>
+          </label>`;
+        }).join("");
+        return `<section class="image-category-panel">
+          <div class="image-category-heading"><h3>${category.icon} ${category.label}</h3><span>${group.selected.size}개 선택 / ${group.results.length}개 검색</span></div>
+          ${group.loading?'<p class="muted">이미지를 검색하고 있습니다…</p>':""}
+          ${group.error?`<p class="error">${esc(group.error)}</p>`:""}
+          ${cards?'<div class="photo-grid image-candidate-grid">'+cards+'</div>':'<p class="muted">아직 검색 결과가 없습니다. 키워드를 입력하고 분류별 이미지 수집을 눌러 주세요.</p>'}
+        </section>`;
+      }).join("");
+      document.getElementById("imageSelectionSummary").textContent=
+        "선택한 이미지 "+selectedImageCount()+"장 (월드컵은 4~64개 후보)";
+    }
+
+    async function searchImageCategory(category){
+      const keyword=document.getElementById("imageKeyword").value.trim();
+      if(keyword.length<2){toast("키워드를 2자 이상 입력해 주세요.");return;}
+      const group=imageGroups[category.key];
+      group.query=keyword+" "+category.terms;
+      group.loading=true;group.error="";group.results=[];group.selected.clear();
+      renderImageCategories();
+      try{
+        const result=await request("/api/images/search?q="+encodeURIComponent(group.query));
+        group.results=result.results||[];
+        if(!group.results.length)group.error="검색 결과가 없습니다. 다른 키워드로 시도해 주세요.";
+      }catch(error){group.error=error.message;}
+      finally{group.loading=false;renderImageCategories();}
+    }
+
+    document.getElementById("imageSearchAll").onclick=async()=>{
+      const keyword=document.getElementById("imageKeyword").value.trim();
+      if(keyword.length<2){toast("키워드를 2자 이상 입력해 주세요.");return;}
+      // Openverse 익명 호출 한도를 고려해 분류별 요청을 순차 실행한다.
+      for(const category of categories)await searchImageCategory(category);
+      toast("4개 분류 이미지 검색이 끝났습니다. 사용할 이미지를 선택해 주세요.");
+    };
+    document.getElementById("imageCategoryChoices").onchange=event=>{
+      const input=event.target.closest("input[data-image-category]");
+      if(!input)return;
+      const group=imageGroups[input.dataset.imageCategory];
+      if(input.checked)group.selected.add(input.value);
+      else group.selected.delete(input.value);
+      document.getElementById("imageSelectionSummary").textContent=
+        "선택한 이미지 "+selectedImageCount()+"장 (월드컵은 4~64개 후보)";
+    };
+    document.getElementById("imageKeywordReset").onclick=()=>{
+      document.getElementById("imageKeyword").value="";
+      categories.forEach(category=>{
+        const group=imageGroups[category.key];
+        group.query="";group.results=[];group.selected.clear();group.error="";group.loading=false;
+      });
+      renderImageCategories();
+      toast("키워드와 이미지 선택을 초기화했습니다.");
+    };
+
+    document.getElementById("wcCreate").onsubmit=async e=>{
+      e.preventDefault();
+      const f=new FormData(e.currentTarget),m=f.get("mode");
+      try{
+        const imageGroupsPayload=categories.map(category=>{
+          const group=imageGroups[category.key];
+          return {category:category.label,query:group.query,imageIds:[...group.selected]};
+        }).filter(group=>group.imageIds.length);
+        const payload={
+          title:f.get("title"),mode:m,labels:f.get("labels"),
+          folderId:m==="photo"?Number(document.getElementById("wcFolder").value):null,
+          photoIds:pickedPhotos,
+          imageGroups:imageGroupsPayload
+        };
+        if(m==="web"&&selectedImageCount()<4){
+          toast("이미지를 최소 4개 이상 선택해 주세요.");return;
+        }
+        const result=await request("/api/worldcups",{method:"POST",body:json(payload)});
+        go("worldcups/"+result.id);
+      }catch(error){toast(error.message);}
+    };
     await change();
   }
   async function renderWorldcupDetail(id) {
