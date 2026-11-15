@@ -56,8 +56,6 @@ app:
     pexels-api-key: ${PEXELS_API_KEY:}
     user-agent: family-album/1.0 (+https://github.com/morrie-kim/family-album)
     max-results: 60
-  kobis:
-    api-key: ${KOBIS_API_KEY:}
 
 # API 문서(Swagger UI): 기본 활성(dev). 운영은 application-prod.yml 에서 비활성화.
 springdoc:
