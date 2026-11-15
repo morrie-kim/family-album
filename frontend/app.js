@@ -256,7 +256,7 @@
   async function renderContents() {
     shell("콘텐츠 찾기",`
       <section class="panel content-search">
-        <p class="muted">영화·드라마·예능·배우 정보를 외부 공개 출처에서 검색합니다. 나무위키는 원문 검색 링크만 제공하며 가족앨범이 문서 내용을 복제하지 않습니다.</p>
+        <p class="muted">영화·드라마·예능·배우를 검색하고, OTT별 다시보기 및 실시간 방송 검색 링크를 확인할 수 있습니다.</p>
         <form id="contentSearchForm" class="toolbar">
           <input id="contentQuery" type="search" minlength="2" placeholder="프로그램명 또는 배우명 (예: 무빙, 이정재)" required>
           <select id="contentKind" aria-label="검색 유형">
@@ -264,28 +264,42 @@
           </select>
           <button class="btn primary">검색</button>
         </form>
-        <p id="contentMessage" class="muted">검색어를 입력하면 공개 웹사이트 검색 링크를 제공합니다.</p>
+        <p id="contentMessage" class="muted">검색어를 입력하면 OTT별 외부 검색 링크를 제공합니다.</p>
       </section>
-      <div id="contentResults" class="content-grid"></div>
-      <p class="content-attribution">나무위키 검색 결과는 원문 사이트에서 확인하세요. 가족앨범은 검색어와 원문 링크만 전달하며 본문·이미지를 저장하지 않습니다.</p>`,"contents");
+      <section class="content-ott-section">
+        <h2>다시보기 OTT 검색</h2>
+        <div id="vodResults" class="content-ott-grid"></div>
+      </section>
+      <section class="content-ott-section">
+        <h2>실시간 방송 검색</h2>
+        <div id="liveResults" class="content-ott-grid"></div>
+      </section>
+      <section class="content-ott-section">
+        <h2>작품 정보 검색</h2>
+        <div id="contentResults" class="content-grid"></div>
+      </section>
+      <p class="content-attribution">OTT별 링크는 외부 검색 결과로 연결됩니다. 가족앨범은 OTT의 실제 제공 여부나 실시간 편성을 보증하지 않으며, 각 서비스에서 직접 확인해야 합니다.</p>`,"contents");
     const resultEl=document.getElementById("contentResults");
+    const vodEl=document.getElementById("vodResults");
+    const liveEl=document.getElementById("liveResults");
     const message=document.getElementById("contentMessage");
+    const renderLinks=links=>(links||[]).map(link=>`<a class="content-ott-link" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">
+      <b>${esc(link.name)}</b><span>${esc(link.description)}</span><i>검색 결과 열기 ↗</i>
+    </a>`).join("");
     document.getElementById("contentSearchForm").onsubmit=async e=>{
       e.preventDefault();
       const q=document.getElementById("contentQuery").value.trim();
       const kind=document.getElementById("contentKind").value;
       if(q.length<2){toast("검색어를 2자 이상 입력해 주세요.");return;}
-      message.textContent="검색 링크를 준비하고 있습니다…";
-      resultEl.innerHTML="";
+      message.textContent="OTT별 검색 링크를 준비하고 있습니다…";
+      resultEl.innerHTML="";vodEl.innerHTML="";liveEl.innerHTML="";
       try{
         const data=await request("/api/contents/search?q="+encodeURIComponent(q)+"&kind="+encodeURIComponent(kind));
-        const links=data.searchLinks||[];
-        message.textContent="검색어: "+q+" · 외부 공개 출처에서 상세 정보를 확인하세요.";
-        resultEl.innerHTML=links.map(link=>`<article class="panel content-card">
-          <div class="content-info"><h3>${esc(link.name)}</h3><p class="content-overview">${esc(link.description)}</p>
-          <a class="btn secondary" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">검색 결과 열기 ↗</a></div>
-        </article>`).join("");
-      }catch(err){message.textContent=err.message;resultEl.innerHTML="";}
+        message.textContent="검색어: "+q+" · 각 OTT의 검색 결과에서 시청 가능 여부를 확인하세요.";
+        vodEl.innerHTML=renderLinks(data.vodLinks);
+        liveEl.innerHTML=renderLinks(data.liveLinks);
+        resultEl.innerHTML=renderLinks(data.searchLinks);
+      }catch(err){message.textContent=err.message;resultEl.innerHTML="";vodEl.innerHTML="";liveEl.innerHTML="";}
     };
   }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
