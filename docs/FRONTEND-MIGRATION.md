@@ -1,8 +1,8 @@
-# Cloudflare Pages 프론트엔드 전환
+# Cloudflare Worker 프론트엔드 전환
 
 ## 마이그레이션 원칙
 
-기존 Thymeleaf 화면은 이전 기간 동안 유지합니다. 신규 Pages SPA는 별도 `frontend/` 디렉터리에서 개발하며, 기능별 API 전환과 회귀 테스트가 완료되기 전에는 기존 화면을 제거하지 않습니다.
+기존 Thymeleaf 화면은 이전 기간 동안 유지합니다. 신규 SPA는 별도 `frontend/` 디렉터리에서 제공하며, 기존 서버 화면은 롤백 및 호환성을 위해 유지합니다.
 
 ## API 인증
 
@@ -12,7 +12,7 @@
 - `GET /api/auth/me`: 로그인 사용자
 - `POST /api/auth/logout`: 세션 종료
 
-브라우저 요청은 `credentials: "include"`를 사용해야 합니다. 변경 요청에는 `X-XSRF-TOKEN` 헤더를 보내야 합니다. Pages와 API는 동일한 등록 가능 도메인의 HTTPS 서브도메인을 사용해야 브라우저의 SameSite 쿠키 정책과 호환됩니다.
+브라우저 요청은 `credentials: "include"`를 사용하고 변경 요청에는 CSRF 헤더를 전달합니다. Worker가 프론트엔드와 API를 동일한 Origin으로 제공하므로 별도 CORS/third-party cookie 구성이 필요하지 않습니다.
 
 ## 기능별 API
 
@@ -24,16 +24,24 @@
 ## 배포 환경변수
 
 백엔드:
-- `FRONTEND_ORIGIN=https://www.example.com`
-- `FRONTEND_URL=https://www.example.com`
-- `APP_BASE_URL=https://api.example.com`
+- `FRONTEND_ORIGIN=https://family-album.nhacker7k.workers.dev`
+- `FRONTEND_URL=https://family-album.nhacker7k.workers.dev`
+- `APP_BASE_URL=https://family-album.nhacker7k.workers.dev`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY` (선택)
 
-Cloudflare Pages:
-- `VITE_API_BASE_URL` 같은 빌드 변수를 쓰지 않는 순수 정적 앱이면 `frontend/config.js`의 API URL을 배포 환경에 맞게 지정합니다.
+Cloudflare Worker:
+- `BACKEND_ORIGIN`: 실행 중인 Quick Tunnel의 `https://<random>.trycloudflare.com` 주소. 실행 스크립트가 자동 감지해 Worker 배포 변수로 설정합니다.
 
-## 중요
+## Google OAuth
 
-Google OAuth callback은 `https://api.example.com/google/callback`을 사용합니다. 기존 콜백은 서버 세션의 OAuth state를 검증하므로 API 도메인 세션 쿠키가 브라우저에 유지되어야 합니다.
+승인된 리디렉션 URI는 다음과 같습니다.
 
-사진 업로드는 Cloudflare 및 Tunnel 요청 본문 제한을 고려해 배치를 유지합니다. 사진 원본은 Spring Boot의 설정된 영속 스토리지에 저장됩니다.
+```text
+https://family-album.nhacker7k.workers.dev/google/callback
+```
+
+OAuth state는 백엔드 세션에서 검증합니다. Worker가 브라우저 세션 쿠키를 백엔드로 전달하므로 callback에서도 같은 세션을 사용합니다.
+
+## 배포 문서
+
+도메인 구매 없이 사용하는 구성과 실행 순서는 [DEPLOY-CLOUDFLARE-LOCAL.md](DEPLOY-CLOUDFLARE-LOCAL.md)를 참고하세요. Quick Tunnel은 임시 개발/테스트 연결이므로 상시 운영에는 고정 도메인과 Named Tunnel 또는 상시 서버를 권장합니다.
