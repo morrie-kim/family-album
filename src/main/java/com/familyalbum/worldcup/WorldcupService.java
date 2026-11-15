@@ -82,6 +82,42 @@ public class WorldcupService {
         return w.getId();
     }
 
+    /** 카테고리별로 검색한 이미지 그룹을 합쳐 하나의 월드컵으로 생성한다. */
+    @Transactional
+    public Long createFromWebGroups(AppPrincipal me, String title, List<WebImageGroup> groups) {
+        String cleanTitle = cleanTitle(title);
+        if (groups == null || groups.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "선택한 이미지가 없습니다.");
+        }
+
+        record Picked(ImageResult image, String category) {}
+        List<Picked> picked = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (WebImageGroup group : groups) {
+            if (group == null || group.query() == null || group.query().isBlank()
+                    || group.imageIds() == null || group.imageIds().isEmpty()) continue;
+            for (ImageResult image : imageSearch.resolve(group.query(), group.imageIds())) {
+                if (seen.add(image.id())) picked.add(new Picked(image, group.category()));
+            }
+        }
+        requireCount(picked.size());
+
+        AppUser creator = loadUser(me);
+        Worldcup w = worldcups.save(new Worldcup(creator.getFamily(), creator, null, cleanTitle));
+        int order = 0;
+        for (Picked selection : picked) {
+            ImageResult image = selection.image();
+            String label = image.title();
+            if (label == null || label.isBlank()) label = selection.category();
+            String credit = image.credit();
+            entries.save(WorldcupEntry.web(w.getId(), label, image.thumbUrl(), image.sourceUrl(),
+                    credit.length() > 300 ? credit.substring(0, 300) : credit, order++));
+        }
+        return w.getId();
+    }
+
+    public record WebImageGroup(String category, String query, List<String> imageIds) {}
+
     /**
      * 인터넷 이미지 월드컵: 주제로 검색한 결과 중 선택한 이미지로 후보를 만든다.
      * 이미지 주소는 클라이언트가 보낸 값이 아니라 검색 서비스의 결과(id → 허용된 https 호스트)에서만 가져온다.
