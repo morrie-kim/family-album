@@ -1,0 +1,8 @@
+# HTTPS is terminated by Cloudflare. Spring still listens on local HTTP.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
