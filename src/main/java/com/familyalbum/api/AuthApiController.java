@@ -7,7 +7,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.util.Map;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
+import com.familyalbum.web.ApiException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,10 +42,15 @@ public class AuthApiController {
     public MeResponse login(@RequestBody LoginRequest request, HttpServletRequest servletRequest,
                             HttpServletResponse response) {
         if (request.email() == null || request.password() == null) {
-            throw new BadCredentialsException("이메일 또는 비밀번호를 확인해 주세요.");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호를 확인해 주세요.");
         }
-        Authentication authentication = authenticationManager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password()));
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password()));
+        } catch (org.springframework.security.authentication.AuthenticationException e) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호를 확인해 주세요.");
+        }
         HttpSession existing = servletRequest.getSession(false);
         if (existing != null) servletRequest.changeSessionId();
         SecurityContext context = SecurityContextHolder.createEmptyContext();

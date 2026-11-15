@@ -13,6 +13,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -32,6 +33,9 @@ public class GoogleWebController {
     private final GoogleImportService imports;
     private final GoogleOAuthClient oauth;
     private final FolderService folderService;
+
+    @Value("${app.frontend-url:}")
+    private String frontendUrl;
 
     public GoogleWebController(GoogleConnectionService connections, GoogleImportService imports,
                                GoogleOAuthClient oauth, FolderService folderService) {
@@ -84,6 +88,10 @@ public class GoogleWebController {
             } catch (ApiException e) {
                 ra.addFlashAttribute("error", e.getMessage());
             }
+        }
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+            String target = frontendUrl.replaceAll("/+$", "");
+            return "redirect:" + target + "/?google=connected#google";
         }
         return "redirect:/google";
     }

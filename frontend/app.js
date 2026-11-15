@@ -16,10 +16,10 @@
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[c]));
-  const toast = message => {
+  let toastTimer;\n  const toast = message => {
     toastEl.textContent = message;
     toastEl.classList.add("show");
-    setTimeout(() => toastEl.classList.remove("show"), 2800);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2800);
   };
   const cookie = name => document.cookie.split("; ").find(x => x.startsWith(name + "="))?.split("=").slice(1).join("=") || "";
   const getCsrf = async () => {
@@ -48,7 +48,7 @@
         me = null;
         renderAuth();
       }
-      throw new Error(data?.message || data?.error || (typeof data === "string" ? data : "") || "요청을 처리하지 못했습니다.");
+      throw new Error(data?.detail || data?.message || data?.error || (typeof data === "string" ? data : "") || "요청을 처리하지 못했습니다.");
     }
     return data;
   }
@@ -107,9 +107,9 @@
     catch { me=null; renderAuth(); }
   }
   async function loadFolders() { folders = await request("/api/folders"); return folders; }
-  async function renderPhotos() {
+  async function renderPhotos(pageNo = 0) {
     await loadFolders();
-    const qs = activeFolder ? "?folderId="+encodeURIComponent(activeFolder)+"&page=0&size=60" : "?page=0&size=60";
+    const qs = activeFolder ? "?folderId="+encodeURIComponent(activeFolder)+"&page="+pageNo+"&size=60" : "?page="+pageNo+"&size=60";
     const page = await request("/api/photos"+qs); photos = page.content || [];
     shell("우리 가족 사진",`
       <div class="toolbar"><select id="folderFilter"><option value="">전체 폴더</option>${folders.map(f=>`<option value="${f.id}" ${String(f.id)===activeFolder?"selected":""}>${esc(f.name)} (${f.photoCount})</option>`).join("")}</select>
@@ -123,7 +123,7 @@
     document.getElementById("upload").onchange=uploadPhotos;
     document.querySelectorAll("[data-photo]").forEach(b=>b.onclick=()=>openPhoto(b.dataset.photo));
     document.getElementById("closeViewer").onclick=()=>document.getElementById("viewer").close();
-    document.getElementById("prev")?.addEventListener("click",()=>renderPhotos( Math.max(0,page.page-1)));
+    document.getElementById("prev")?.addEventListener("click",()=>renderPhotos(Math.max(0,page.page-1)));
     document.getElementById("next")?.addEventListener("click",()=>renderPhotos(page.page+1));
   }
   async function uploadPhotos(e) {
