@@ -58,6 +58,7 @@ app:
     max-results: 60
   tmdb:
     api-key: ${TMDB_API_KEY:}
+    read-access-token: ${TMDB_API_READ_ACCESS_TOKEN:}
 
 # API 문서(Swagger UI): 기본 활성(dev). 운영은 application-prod.yml 에서 비활성화.
 springdoc:
