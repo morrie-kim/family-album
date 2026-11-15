@@ -69,11 +69,13 @@ chmod +x scripts/cloudflare-worker-up.sh
 
 스크립트가 다음을 자동 수행합니다.
 
-1. 로컬 Spring Boot를 `prod,cloudflare-tunnel` 프로파일로 실행합니다.
-2. `/api/auth/csrf`로 백엔드 준비 상태를 확인합니다.
+1. `/api/auth/csrf`를 먼저 확인해 이미 실행 중인 Spring Boot가 있으면 해당 서버를 재사용합니다. 없으면 로컬 Spring Boot를 `prod,cloudflare-tunnel` 프로파일로 실행합니다.
+2. 백엔드 준비 상태를 확인합니다. 지정 포트가 다른 프로세스에 점유되어 있으면 중복 실행하지 않고 종료합니다.
 3. `cloudflared tunnel --url http://127.0.0.1:8080`으로 Quick Tunnel을 시작합니다.
 4. 발급된 임시 `trycloudflare.com` 주소를 읽어 `BACKEND_ORIGIN` 변수로 Worker를 배포합니다.
 5. Worker는 SPA 정적 파일을 제공하고 API/OAuth callback 요청을 로컬 백엔드로 전달합니다.
+
+> H2 파일 DB는 기본적으로 한 프로세스만 직접 열 수 있습니다. IntelliJ에서 이미 Family Album을 실행했다면 스크립트가 정상 응답 중인 서버를 재사용합니다. 다른 프로세스가 DB를 사용 중인데 백엔드가 정상 응답하지 않는다면 해당 프로세스를 먼저 종료하세요. `albumdb.mv.db` 또는 H2 잠금 파일을 삭제하면 안 됩니다.
 
 실행 중인 터미널을 닫지 마세요. 재시작하면 Quick Tunnel URL이 바뀌며 스크립트가 Worker를 다시 배포합니다.
 
