@@ -103,7 +103,8 @@
     catch(e){ toast(e.message); }
   }
   async function boot() {
-    if (!API || API.includes("example.com")) { app.innerHTML='<main class="auth-card"><h1>API 주소 설정 필요</h1><p>frontend/config.js의 apiBaseUrl을 실제 api 도메인으로 변경하세요.</p></main>'; return; }
+    // Cloudflare Worker가 프론트엔드와 API를 같은 Origin에서 제공하므로
+    // API Base URL이 빈 문자열인 상대 경로 설정을 정상값으로 취급합니다.
     try {
       await getCsrf(); me = await request("/api/auth/me"); await renderRoute();
       const googleState = new URLSearchParams(location.search).get("google");
