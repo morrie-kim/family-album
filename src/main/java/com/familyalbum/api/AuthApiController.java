@@ -48,7 +48,7 @@ public class AuthApiController {
         try {
             authentication = authenticationManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(request.email(), request.password()));
-        } catch (org.springframework.security.authentication.AuthenticationException e) {
+        } catch (org.springframework.security.core.AuthenticationException e) {
             throw new ApiException(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호를 확인해 주세요.");
         }
         HttpSession existing = servletRequest.getSession(false);
