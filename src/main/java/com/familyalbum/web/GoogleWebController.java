@@ -76,14 +76,16 @@ public class GoogleWebController {
                     HttpSession session, RedirectAttributes ra) {
         String expected = (String) session.getAttribute(STATE_KEY);
         session.removeAttribute(STATE_KEY);
+        boolean connected = false;
         if (error != null) {
             ra.addFlashAttribute("error", "구글 연결이 취소됐어요.");
         } else if (expected == null || state == null || code == null
                 || !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), state.getBytes(StandardCharsets.UTF_8))) {
             ra.addFlashAttribute("error", "잘못된 연결 요청이에요. 다시 시도해 주세요.");
-        } else {
+        } else if (me != null) {
             try {
                 connections.connect(me.userId(), code);
+                connected = true;
                 ra.addFlashAttribute("message", "구글 포토를 연결했어요.");
             } catch (ApiException e) {
                 ra.addFlashAttribute("error", e.getMessage());
@@ -91,7 +93,7 @@ public class GoogleWebController {
         }
         if (frontendUrl != null && !frontendUrl.isBlank()) {
             String target = frontendUrl.replaceAll("/+$", "");
-            return "redirect:" + target + "/?google=connected#google";
+            return "redirect:" + target + "/?google=" + (connected ? "connected" : "error") + "#google";
         }
         return "redirect:/google";
     }

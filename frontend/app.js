@@ -104,8 +104,12 @@
   }
   async function boot() {
     if (!API || API.includes("example.com")) { app.innerHTML='<main class="auth-card"><h1>API 주소 설정 필요</h1><p>frontend/config.js의 apiBaseUrl을 실제 api 도메인으로 변경하세요.</p></main>'; return; }
-    try { await getCsrf(); me = await request("/api/auth/me"); await renderRoute(); }
-    catch { me=null; renderAuth(); }
+    try {
+      await getCsrf(); me = await request("/api/auth/me"); await renderRoute();
+      const googleState = new URLSearchParams(location.search).get("google");
+      if (googleState === "connected") toast("Google 포토 연결이 완료되었습니다.");
+      if (googleState === "error") toast("Google 포토 연결에 실패했습니다. 다시 시도해 주세요.");
+    } catch { me=null; renderAuth(); }
   }
   async function loadFolders() { folders = await request("/api/folders"); return folders; }
   async function renderPhotos(pageNo = 0) {
@@ -189,8 +193,10 @@
       const folderId=document.getElementById("gFolder").value, statusEl=document.getElementById("gStatus"), btn=document.getElementById("pickGoogle");
       btn.disabled=true;let popup=null;
       try{
+        popup=window.open("about:blank","google-picker","popup,width=1000,height=750");
+        if(!popup) throw new Error("팝업이 차단되었습니다. 이 사이트의 팝업을 허용한 뒤 다시 시도해 주세요.");
         const s=await request("/api/google/picker/sessions?folderId="+folderId,{method:"POST"});
-        popup=window.open(s.pickerUri,"google-picker","popup,width=1000,height=750");
+        popup.location.href=s.pickerUri;
         statusEl.textContent="Google Photos에서 사진을 선택하고 완료를 눌러 주세요.";
         const deadline=Date.now()+(s.timeoutMs||600000);let ready=false;
         while(Date.now()<deadline){await new Promise(r=>setTimeout(r,Math.max(2000,s.pollIntervalMs||5000)));const p=await request("/api/google/picker/sessions/"+encodeURIComponent(s.sessionId));if(p.ready){ready=true;break;}}
@@ -239,7 +245,11 @@
   async function renderWorldcupResult(id,playId) {
     const result=playId?await request("/api/worldcups/"+id+"/plays/"+playId+"/result"):null;
     const ranking=await request("/api/worldcups/"+id+"/results");
-    shell(result?"플레이 결과":"가족 랭킹",`<section class="panel">${result?'<h2>우승</h2><h3>'+esc(result.champion?.label||result.champion?.photoName)+'</h3><p>준우승: '+esc(result.runnerUp?.label||result.runnerUp?.photoName)+'</p>':""}<h2>랭킹</h2><ol class="ranking">${ranking.rows.map(r=>`<li><b>${r.rank}위</b> ${esc(r.entry.label||r.entry.photoName)} <span>${r.champions}회 우승 · 승률 ${r.winRatePercent}%</span></li>`).join("")}</ol><a class="btn secondary" href="#worldcups/${id}">월드컵으로</a></section>`,"worldcups");
+    const eliminated=result?.eliminated||[];
+    shell(result?"플레이 결과":"가족 랭킹",`<section class="panel">
+      ${result?'<h2>우승</h2><h3>'+esc(result.champion?.label||result.champion?.photoName)+'</h3><p>준우승: '+esc(result.runnerUp?.label||result.runnerUp?.photoName)+'</p>'+
+        eliminated.map(g=>'<h3>'+esc(g.label)+'</h3><p>'+g.entries.map(e=>esc(e.label||e.photoName)).join(' · ')+'</p>').join(''):""}
+      <h2>가족 랭킹</h2><ol class="ranking">${ranking.rows.map(r=>`<li><b>${r.rank}위</b> ${esc(r.entry.label||r.entry.photoName)} <span>${r.champions}회 우승 · ${r.wins}승 · 승률 ${r.winRatePercent}%</span></li>`).join("")}</ol><a class="btn secondary" href="#worldcups/${id}">월드컵으로</a></section>`,"worldcups");
   }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
   async function renderRoute() {
