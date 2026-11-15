@@ -1,16 +1,11 @@
 package com.familyalbum.api;
 
-import com.familyalbum.domain.AppUser;
 import com.familyalbum.security.AppPrincipal;
-import com.familyalbum.service.AuthService;
 import com.familyalbum.web.Dtos.MeResponse;
-import com.familyalbum.web.Dtos.SignupRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.validation.Valid;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,13 +23,11 @@ public class AuthApiController {
 
     public record LoginRequest(String email, String password) {}
 
-    private final AuthService authService;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository contextRepository;
 
-    public AuthApiController(AuthService authService, AuthenticationManager authenticationManager,
+    public AuthApiController(AuthenticationManager authenticationManager,
                              SecurityContextRepository contextRepository) {
-        this.authService = authService;
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
     }
@@ -42,13 +35,6 @@ public class AuthApiController {
     @GetMapping("/csrf")
     public Map<String, String> csrf(CsrfToken token) {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
-    }
-
-    @PostMapping("/signup")
-    @ResponseStatus(HttpStatus.CREATED)
-    public MeResponse signup(@Valid @RequestBody SignupRequest request) {
-        AppUser user = authService.signup(request);
-        return new MeResponse(user.getId(), user.getName(), user.getEmail(), user.getFamily().getId());
     }
 
     @PostMapping("/login")
