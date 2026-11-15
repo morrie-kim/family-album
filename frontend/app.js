@@ -256,61 +256,36 @@
   async function renderContents() {
     shell("콘텐츠 찾기",`
       <section class="panel content-search">
-        <p class="muted">KOBIS에 등록된 국내 영화와 영화인을 검색합니다. 드라마·예능 및 OTT 제공 정보는 검증 가능한 데이터 연동 전까지 표시하지 않습니다.</p>
+        <p class="muted">영화·드라마·예능·배우 정보를 외부 공개 출처에서 검색합니다. 나무위키는 원문 검색 링크만 제공하며 가족앨범이 문서 내용을 복제하지 않습니다.</p>
         <form id="contentSearchForm" class="toolbar">
           <input id="contentQuery" type="search" minlength="2" placeholder="프로그램명 또는 배우명 (예: 무빙, 이정재)" required>
           <select id="contentKind" aria-label="검색 유형">
-            <option value="all">전체 영화</option><option value="tv" disabled>드라마·예능 (데이터 준비 중)</option><option value="movie">영화</option><option value="person">배우·영화인</option>
+            <option value="all">전체</option><option value="tv">드라마·예능</option><option value="movie">영화</option><option value="person">배우·출연진</option>
           </select>
           <button class="btn primary">검색</button>
         </form>
-        <div class="content-filters">
-          <label>상태 <select id="contentStatus"><option value="all">전체</option><option value="upcoming">개봉 예정</option><option value="ended">개봉 완료</option></select></label>
-        </div>
-        <p id="contentMessage" class="muted">검색어를 입력해 주세요. 영화인 검색은 KOBIS에 등록된 참여 작품을 조회합니다.</p>
+        <p id="contentMessage" class="muted">검색어를 입력하면 공개 웹사이트 검색 링크를 제공합니다.</p>
       </section>
       <div id="contentResults" class="content-grid"></div>
-      <p class="content-attribution">영화·영화인 정보 제공: <a href="https://www.kobis.or.kr/kobisopenapi" target="_blank" rel="noopener">영화진흥위원회 KOBIS Open API</a>. KOBIS는 영화 데이터 제공처이며 드라마·예능 및 OTT 실시간 제공 여부는 제공하지 않습니다.</p>`,"contents");
-    let results=[];
+      <p class="content-attribution">나무위키 검색 결과는 원문 사이트에서 확인하세요. 가족앨범은 검색어와 원문 링크만 전달하며 본문·이미지를 저장하지 않습니다.</p>`,"contents");
     const resultEl=document.getElementById("contentResults");
     const message=document.getElementById("contentMessage");
-    const draw=()=>{
-      const state=document.getElementById("contentStatus").value;
-      const filtered=results.filter(x=>state==="all"||x.status===state);
-      resultEl.innerHTML=filtered.map(x=>{
-        const providers=(x.providers||[]).map(p=>`<span class="provider-chip">${esc(p.name)} <small>${esc(p.category)}</small></span>`).join("");
-        const cast=(x.cast||[]).slice(0,4).map(c=>esc(c.name)+(c.role?" ("+esc(c.role)+")":"")).join(" · ");
-        return `<article class="content-card">
-          <div class="content-poster">${x.posterUrl?`<img loading="lazy" src="${esc(x.posterUrl)}" alt="${esc(x.title)} 포스터">`:'<span>포스터 없음</span>'}</div>
-          <div class="content-info">
-            <div class="content-meta"><span>${esc(x.mediaLabel)}</span><b class="status-${esc(x.status)}">${esc(x.statusLabel)}</b><span>${esc(x.year||"연도 미상")}</span></div>
-            <h3>${esc(x.title)}</h3>
-            ${x.originalTitle&&x.originalTitle!==x.title?`<p class="muted">${esc(x.originalTitle)}</p>`:""}
-            <p class="content-overview">${esc(x.overview||"줄거리 정보가 없습니다.")}</p>
-            ${x.matchedPerson?`<p class="content-cast"><b>${esc(x.matchedPerson)}</b> · ${esc(x.matchedRole||"출연")}</p>`:""}
-            ${cast?`<p class="content-cast">${cast}</p>`:""}
-            <div class="genre-list">${(x.genres||[]).map(g=>`<span>${esc(g)}</span>`).join("")}</div>
-            <div class="provider-list"><b>국내 OTT</b>${providers||'<span class="muted">OTT 제공 여부는 정확성을 확인할 별도 데이터 공급원 연동 후 표시합니다.</span>'}</div>
-            ${x.providerLink?`<a class="provider-link" href="${esc(x.providerLink)}" target="_blank" rel="noopener">시청 가능한 서비스 확인 ↗</a>`:""}
-          </div>
-        </article>`;
-      }).join("");
-      if(results.length&&filtered.length===0) message.textContent="선택한 상태에 해당하는 검색 결과가 없습니다.";
-    };
-    document.getElementById("contentStatus").onchange=draw;
     document.getElementById("contentSearchForm").onsubmit=async e=>{
       e.preventDefault();
       const q=document.getElementById("contentQuery").value.trim();
       const kind=document.getElementById("contentKind").value;
       if(q.length<2){toast("검색어를 2자 이상 입력해 주세요.");return;}
-      message.textContent="KOBIS 영화·영화인 정보를 조회하고 있습니다…";
+      message.textContent="검색 링크를 준비하고 있습니다…";
       resultEl.innerHTML="";
       try{
         const data=await request("/api/contents/search?q="+encodeURIComponent(q)+"&kind="+encodeURIComponent(kind));
-        results=data.results||[];
-        message.textContent=results.length?"KOBIS 검색 결과 "+results.length+"건":"검색 결과가 없습니다.";
-        draw();
-      }catch(err){results=[];message.textContent=err.message;resultEl.innerHTML="";}
+        const links=data.searchLinks||[];
+        message.textContent="검색어: "+q+" · 외부 공개 출처에서 상세 정보를 확인하세요.";
+        resultEl.innerHTML=links.map(link=>`<article class="panel content-card">
+          <div class="content-info"><h3>${esc(link.name)}</h3><p class="content-overview">${esc(link.description)}</p>
+          <a class="btn secondary" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">검색 결과 열기 ↗</a></div>
+        </article>`).join("");
+      }catch(err){message.textContent=err.message;resultEl.innerHTML="";}
     };
   }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
