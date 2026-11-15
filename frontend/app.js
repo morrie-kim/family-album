@@ -327,7 +327,17 @@
         if(!serverVodLinks.length||!serverLiveLinks.length){
           message.textContent+=" · 서버 응답이 구버전이어서 OTT 검색 링크를 브라우저에서 보완했습니다.";
         }
-      }catch(err){message.textContent=err.message;resultEl.innerHTML="";vodEl.innerHTML="";liveEl.innerHTML="";}
+      }catch(err){
+        // API 오류/구버전 백엔드에서도 사용자가 OTT 검색을 진행할 수 있도록 외부 검색 링크를 제공한다.
+        message.textContent="콘텐츠 API 응답을 사용할 수 없어 외부 검색 링크로 표시합니다. ("+err.message+")";
+        vodEl.innerHTML=renderLinks(fallbackOttLinks(q,VOD_SEARCH_PROVIDERS,"다시보기"));
+        liveEl.innerHTML=renderLinks(fallbackOttLinks(q,LIVE_SEARCH_PROVIDERS,"실시간 방송"));
+        const encoded=encodeURIComponent(q);
+        resultEl.innerHTML=renderLinks([
+          {name:"나무위키",url:"https://namu.wiki/Search?q="+encoded,description:"나무위키에서 '"+q+"' 검색"},
+          {name:"웹 전체 검색",url:"https://www.google.com/search?q="+encodeURIComponent(q+" 영화 드라마 예능 방송"),description:"웹 전체에서 '"+q+"' 관련 정보 검색"}
+        ]);
+      }
     };
   }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
