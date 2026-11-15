@@ -344,7 +344,7 @@
           return {category:category.label,query:group.query,imageIds:[...group.selected]};
         }).filter(group=>group.imageIds.length);
         const payload={
-          title:f.get("title"),mode:m,labels:f.get("labels"),
+          title:f.get("title"),mode:m==="web"?"web-groups":m,labels:f.get("labels"),
           folderId:m==="photo"?Number(document.getElementById("wcFolder").value):null,
           photoIds:pickedPhotos,
           imageGroups:imageGroupsPayload
