@@ -285,7 +285,28 @@
     const message=document.getElementById("contentMessage");
     const renderLinks=links=>(links||[]).map(link=>`<a class="content-ott-link" href="${esc(link.url)}" target="_blank" rel="noopener noreferrer">
       <b>${esc(link.name)}</b><span>${esc(link.description)}</span><i>검색 결과 열기 ↗</i>
-    </a>`).join("");
+    </a>`).join("") || '<p class="muted">표시할 검색 링크가 없습니다.</p>';
+    // 이전 버전 백엔드가 배포된 상태에서도 OTT 링크 영역이 비지 않도록 브라우저에서 보완한다.
+    // 최신 백엔드가 정상 배열을 반환하면 서버 결과를 우선 사용한다.
+    const fallbackOttLinks=(query, providers, viewingType)=>providers.map(provider=>({
+      name:provider.name,
+      url:"https://www.google.com/search?q="+encodeURIComponent(query+" "+viewingType+" site:"+provider.domain),
+      description:provider.name+" 도메인에서 '"+query+"' "+viewingType+" 검색 결과를 확인합니다. 실제 제공 여부는 플랫폼에서 확인하세요."
+    }));
+    const VOD_SEARCH_PROVIDERS=[
+      {name:"넷플릭스",domain:"netflix.com"},
+      {name:"티빙",domain:"tving.com"},
+      {name:"웨이브",domain:"wavve.com"},
+      {name:"디즈니+",domain:"disneyplus.com"},
+      {name:"쿠팡플레이",domain:"coupangplay.com"},
+      {name:"왓챠",domain:"watcha.com"},
+      {name:"Apple TV+",domain:"tv.apple.com"},
+      {name:"라프텔",domain:"laftel.net"}
+    ];
+    const LIVE_SEARCH_PROVIDERS=[
+      {name:"티빙",domain:"tving.com"},
+      {name:"웨이브",domain:"wavve.com"}
+    ];
     document.getElementById("contentSearchForm").onsubmit=async e=>{
       e.preventDefault();
       const q=document.getElementById("contentQuery").value.trim();
@@ -296,9 +317,16 @@
       try{
         const data=await request("/api/contents/search?q="+encodeURIComponent(q)+"&kind="+encodeURIComponent(kind));
         message.textContent="검색어: "+q+" · 각 OTT의 검색 결과에서 시청 가능 여부를 확인하세요.";
-        vodEl.innerHTML=renderLinks(data.vodLinks);
-        liveEl.innerHTML=renderLinks(data.liveLinks);
-        resultEl.innerHTML=renderLinks(data.searchLinks);
+        const serverVodLinks=Array.isArray(data.vodLinks)?data.vodLinks:[];
+        const serverLiveLinks=Array.isArray(data.liveLinks)?data.liveLinks:[];
+        const vodLinks=serverVodLinks.length?serverVodLinks:fallbackOttLinks(q,VOD_SEARCH_PROVIDERS,"다시보기");
+        const liveLinks=serverLiveLinks.length?serverLiveLinks:fallbackOttLinks(q,LIVE_SEARCH_PROVIDERS,"실시간 방송");
+        vodEl.innerHTML=renderLinks(vodLinks);
+        liveEl.innerHTML=renderLinks(liveLinks);
+        resultEl.innerHTML=renderLinks(Array.isArray(data.searchLinks)?data.searchLinks:[]);
+        if(!serverVodLinks.length||!serverLiveLinks.length){
+          message.textContent+=" · 서버 응답이 구버전이어서 OTT 검색 링크를 브라우저에서 보완했습니다.";
+        }
       }catch(err){message.textContent=err.message;resultEl.innerHTML="";vodEl.innerHTML="";liveEl.innerHTML="";}
     };
   }
