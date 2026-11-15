@@ -35,3 +35,22 @@
 .content-ott-link b{font-size:15px}
 .content-ott-link span{font-size:12px;line-height:1.5;color:#777}
 .content-ott-link i{font-size:12px;font-style:normal;font-weight:700;color:#315f4b;margin-top:2px}
+
+
+/* OTT 서비스별 브랜드 아이콘 */
+.content-ott-link{flex-direction:row;align-items:flex-start;gap:12px;transition:border-color .15s,transform .15s}
+.content-ott-link:hover{border-color:#c9d5cc;transform:translateY(-1px)}
+.content-ott-brand{width:46px;height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#f0eee9;color:#333;font-size:22px;font-weight:850;letter-spacing:-1px}
+.content-ott-brand-netflix{background:#171717;color:#e50914;font-family:Arial,sans-serif;font-size:30px}
+.content-ott-brand-tving{background:#ffeff1;color:#ff1744;font-size:25px}
+.content-ott-brand-wavve{background:#eaf2ff;color:#1769ff;font-size:25px}
+.content-ott-brand-disney{background:#101b3d;color:#fff;font-size:19px}
+.content-ott-brand-coupang{background:#eaf5ff;color:#1685d5;font-size:19px;letter-spacing:-2px}
+.content-ott-brand-watcha{background:#fceef0;color:#ed1c24;font-size:25px}
+.content-ott-brand-apple{background:#242424;color:#fff;font-size:17px;letter-spacing:-1px}
+.content-ott-brand-laftel{background:#f0eaff;color:#7448d8;font-size:25px}
+.content-ott-brand-default{background:#efefed;color:#666}
+.content-ott-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:7px}
+.content-ott-copy>b{font-size:15px}
+.content-ott-copy>span{font-size:12px;line-height:1.5;color:#777}
+.content-ott-copy>i{font-size:12px;font-style:normal;font-weight:700;color:#315f4b;margin-top:2px}
