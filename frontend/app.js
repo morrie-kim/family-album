@@ -59,10 +59,10 @@
   const shell = (title, content, active = "photos") => {
     app.innerHTML = `
       <header class="topbar"><a class="brand" href="#photos">▧ 가족앨범</a>
-        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a></nav>
+        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a></nav>
         <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">로그아웃</button>
       </header><main class="wrap"><div class="pagehead"><h1>${title}</h1></div>${content}</main>
-      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a></nav>`;
+      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a></nav>`;
     document.getElementById("logout").onclick = logout;
   };
   function renderAuth(message = "") {
@@ -252,6 +252,67 @@
         eliminated.map(g=>'<h3>'+esc(g.label)+'</h3><p>'+g.entries.map(e=>esc(e.label||e.photoName)).join(' · ')+'</p>').join(''):""}
       <h2>가족 랭킹</h2><ol class="ranking">${ranking.rows.map(r=>`<li><b>${r.rank}위</b> ${esc(r.entry.label||r.entry.photoName)} <span>${r.champions}회 우승 · ${r.wins}승 · 승률 ${r.winRatePercent}%</span></li>`).join("")}</ol><a class="btn secondary" href="#worldcups/${id}">월드컵으로</a></section>`,"worldcups");
   }
+
+  async function renderContents() {
+    shell("콘텐츠 찾기",`
+      <section class="panel content-search">
+        <p class="muted">드라마·영화·예능 제목이나 배우 이름으로 검색하고, 국내 OTT 제공 여부를 확인하세요.</p>
+        <form id="contentSearchForm" class="toolbar">
+          <input id="contentQuery" type="search" minlength="2" placeholder="프로그램명 또는 배우명 (예: 무빙, 이정재)" required>
+          <select id="contentKind" aria-label="검색 유형">
+            <option value="all">전체 콘텐츠</option><option value="tv">드라마·예능</option><option value="movie">영화</option><option value="person">배우·출연진</option>
+          </select>
+          <button class="btn primary">검색</button>
+        </form>
+        <div class="content-filters">
+          <label>상태 <select id="contentStatus"><option value="all">전체</option><option value="airing">방영 중</option><option value="upcoming">방영·개봉 예정</option><option value="ended">종영·개봉 완료</option></select></label>
+        </div>
+        <p id="contentMessage" class="muted">검색어를 입력해 주세요. 배우·출연진을 선택하면 출연 작품도 찾을 수 있습니다.</p>
+      </section>
+      <div id="contentResults" class="content-grid"></div>
+      <p class="content-attribution">콘텐츠 및 이미지 정보 제공: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. OTT 제공 정보는 대한민국 기준이며 변동될 수 있습니다.</p>`,"contents");
+    let results=[];
+    const resultEl=document.getElementById("contentResults");
+    const message=document.getElementById("contentMessage");
+    const draw=()=>{
+      const state=document.getElementById("contentStatus").value;
+      const filtered=results.filter(x=>state==="all"||x.status===state);
+      resultEl.innerHTML=filtered.map(x=>{
+        const providers=(x.providers||[]).map(p=>`<span class="provider-chip">${esc(p.name)} <small>${esc(p.category)}</small></span>`).join("");
+        const cast=(x.cast||[]).slice(0,4).map(c=>esc(c.name)+(c.role?" ("+esc(c.role)+")":"")).join(" · ");
+        return `<article class="content-card">
+          <div class="content-poster">${x.posterUrl?`<img loading="lazy" src="${esc(x.posterUrl)}" alt="${esc(x.title)} 포스터">`:'<span>포스터 없음</span>'}</div>
+          <div class="content-info">
+            <div class="content-meta"><span>${esc(x.mediaLabel)}</span><b class="status-${esc(x.status)}">${esc(x.statusLabel)}</b><span>${esc(x.year||"연도 미상")}</span></div>
+            <h3>${esc(x.title)}</h3>
+            ${x.originalTitle&&x.originalTitle!==x.title?`<p class="muted">${esc(x.originalTitle)}</p>`:""}
+            <p class="content-overview">${esc(x.overview||"줄거리 정보가 없습니다.")}</p>
+            ${x.matchedPerson?`<p class="content-cast"><b>${esc(x.matchedPerson)}</b> · ${esc(x.matchedRole||"출연")}</p>`:""}
+            ${cast?`<p class="content-cast">${cast}</p>`:""}
+            <div class="genre-list">${(x.genres||[]).map(g=>`<span>${esc(g)}</span>`).join("")}</div>
+            <div class="provider-list"><b>국내 OTT</b>${providers||'<span class="muted">확인된 제공 정보가 없습니다.</span>'}</div>
+            ${x.providerLink?`<a class="provider-link" href="${esc(x.providerLink)}" target="_blank" rel="noopener">시청 가능한 서비스 확인 ↗</a>`:""}
+          </div>
+        </article>`;
+      }).join("");
+      if(results.length&&filtered.length===0) message.textContent="선택한 상태에 해당하는 검색 결과가 없습니다.";
+    };
+    document.getElementById("contentStatus").onchange=draw;
+    document.getElementById("contentSearchForm").onsubmit=async e=>{
+      e.preventDefault();
+      const q=document.getElementById("contentQuery").value.trim();
+      const kind=document.getElementById("contentKind").value;
+      if(q.length<2){toast("검색어를 2자 이상 입력해 주세요.");return;}
+      message.textContent="콘텐츠와 국내 OTT 정보를 조회하고 있습니다…";
+      resultEl.innerHTML="";
+      try{
+        const data=await request("/api/contents/search?q="+encodeURIComponent(q)+"&kind="+encodeURIComponent(kind));
+        results=data.results||[];
+        message.textContent=results.length?"검색 결과 "+results.length+"건":"검색 결과가 없습니다.";
+        draw();
+      }catch(err){results=[];message.textContent=err.message;resultEl.innerHTML="";}
+    };
+  }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
   async function renderRoute() {
     const parts=route(), page=parts[0];
@@ -259,6 +320,7 @@
     else if(page==="family") await renderFamily();
     else if(page==="folder") await renderFolder(parts);
     else if(page==="google") await renderGoogle();
+    else if(page==="contents") await renderContents();
     else if(page==="worldcups"&&parts[1]==="new") await renderWorldcupNew();
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays"&&parts[4]==="result") await renderWorldcupResult(parts[1],parts[3]);
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays") await renderPlay(parts[1],parts[3]);
