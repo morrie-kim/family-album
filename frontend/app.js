@@ -256,21 +256,21 @@
   async function renderContents() {
     shell("콘텐츠 찾기",`
       <section class="panel content-search">
-        <p class="muted">드라마·영화·예능 제목이나 배우 이름으로 검색하고, 국내 OTT 제공 여부를 확인하세요.</p>
+        <p class="muted">KOBIS에 등록된 국내 영화와 영화인을 검색합니다. 드라마·예능 및 OTT 제공 정보는 검증 가능한 데이터 연동 전까지 표시하지 않습니다.</p>
         <form id="contentSearchForm" class="toolbar">
           <input id="contentQuery" type="search" minlength="2" placeholder="프로그램명 또는 배우명 (예: 무빙, 이정재)" required>
           <select id="contentKind" aria-label="검색 유형">
-            <option value="all">전체 콘텐츠</option><option value="tv">드라마·예능</option><option value="movie">영화</option><option value="person">배우·출연진</option>
+            <option value="all">전체 영화</option><option value="tv" disabled>드라마·예능 (데이터 준비 중)</option><option value="movie">영화</option><option value="person">배우·영화인</option>
           </select>
           <button class="btn primary">검색</button>
         </form>
         <div class="content-filters">
-          <label>상태 <select id="contentStatus"><option value="all">전체</option><option value="airing">방영 중</option><option value="upcoming">방영·개봉 예정</option><option value="ended">종영·개봉 완료</option></select></label>
+          <label>상태 <select id="contentStatus"><option value="all">전체</option><option value="upcoming">개봉 예정</option><option value="ended">개봉 완료</option></select></label>
         </div>
-        <p id="contentMessage" class="muted">검색어를 입력해 주세요. 배우·출연진을 선택하면 출연 작품도 찾을 수 있습니다.</p>
+        <p id="contentMessage" class="muted">검색어를 입력해 주세요. 영화인 검색은 KOBIS에 등록된 참여 작품을 조회합니다.</p>
       </section>
       <div id="contentResults" class="content-grid"></div>
-      <p class="content-attribution">콘텐츠 및 이미지 정보 제공: <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. 이 서비스는 TMDB의 보증·인증을 받지 않았습니다. OTT 정보는 국내 구독·대여·구매 기준이며, 실시간 방송 편성 여부를 보장하지 않습니다.</p>`,"contents");
+      <p class="content-attribution">영화·영화인 정보 제공: <a href="https://www.kobis.or.kr/kobisopenapi" target="_blank" rel="noopener">영화진흥위원회 KOBIS Open API</a>. KOBIS는 영화 데이터 제공처이며 드라마·예능 및 OTT 실시간 제공 여부는 제공하지 않습니다.</p>`,"contents");
     let results=[];
     const resultEl=document.getElementById("contentResults");
     const message=document.getElementById("contentMessage");
@@ -290,7 +290,7 @@
             ${x.matchedPerson?`<p class="content-cast"><b>${esc(x.matchedPerson)}</b> · ${esc(x.matchedRole||"출연")}</p>`:""}
             ${cast?`<p class="content-cast">${cast}</p>`:""}
             <div class="genre-list">${(x.genres||[]).map(g=>`<span>${esc(g)}</span>`).join("")}</div>
-            <div class="provider-list"><b>국내 OTT</b>${providers||'<span class="muted">확인된 제공 정보가 없습니다.</span>'}</div>
+            <div class="provider-list"><b>국내 OTT</b>${providers||'<span class="muted">OTT 제공 여부는 정확성을 확인할 별도 데이터 공급원 연동 후 표시합니다.</span>'}</div>
             ${x.providerLink?`<a class="provider-link" href="${esc(x.providerLink)}" target="_blank" rel="noopener">시청 가능한 서비스 확인 ↗</a>`:""}
           </div>
         </article>`;
@@ -303,12 +303,12 @@
       const q=document.getElementById("contentQuery").value.trim();
       const kind=document.getElementById("contentKind").value;
       if(q.length<2){toast("검색어를 2자 이상 입력해 주세요.");return;}
-      message.textContent="콘텐츠와 국내 OTT 정보를 조회하고 있습니다…";
+      message.textContent="KOBIS 영화·영화인 정보를 조회하고 있습니다…";
       resultEl.innerHTML="";
       try{
         const data=await request("/api/contents/search?q="+encodeURIComponent(q)+"&kind="+encodeURIComponent(kind));
         results=data.results||[];
-        message.textContent=results.length?"검색 결과 "+results.length+"건":"검색 결과가 없습니다.";
+        message.textContent=results.length?"KOBIS 검색 결과 "+results.length+"건":"검색 결과가 없습니다.";
         draw();
       }catch(err){results=[];message.textContent=err.message;resultEl.innerHTML="";}
     };
