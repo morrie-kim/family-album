@@ -3,184 +3,229 @@ package com.familyalbum.content;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * TMDB 기반 콘텐츠 검색 및 대한민국 OTT 제공 정보 조회.
- * 검색 결과는 최신 정보가 중요하므로 캐시하지 않고 요청 시 조회한다.
+ * KOBIS 기반 국내 영화·영화인 검색.
+ *
+ * KOBIS는 영화 및 영화인 데이터 제공처이며 TV 드라마·예능이나 국내 OTT 제공 현황은 제공하지 않는다.
+ * 검증되지 않은 OTT 정보를 결과에 채우지 않는다.
  */
 @Service
 public class ContentCatalogService {
-    private static final String BASE = "https://api.themoviedb.org/3";
+    private static final String BASE =
+            "https://www.kobis.or.kr/kobisopenapi/webservice/rest";
+    private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
+
     private final RestClient client;
     private final String apiKey;
-    private final String readAccessToken;
 
     public ContentCatalogService(RestClient.Builder builder,
-                                 @Value("${app.tmdb.api-key:}") String apiKey,
-                                 @Value("${app.tmdb.read-access-token:}") String readAccessToken) {
+                                 @Value("${app.kobis.api-key:}") String apiKey) {
         this.client = builder.build();
         this.apiKey = apiKey == null ? "" : apiKey.trim();
-        this.readAccessToken = readAccessToken == null ? "" : readAccessToken.trim();
     }
 
     public Map<String, Object> search(String query, String kind) {
-        requireKey();
         String q = query == null ? "" : query.trim();
-        if (q.length() < 2) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "검색어를 2자 이상 입력해 주세요.");
-        String mode = kind == null ? "all" : kind.toLowerCase(Locale.ROOT);
-        List<Map<String, Object>> items = new ArrayList<>();
-        if ("person".equals(mode)) {
-            JsonNode people = get("/search/person", Map.of("query", q, "include_adult", "false"));
-            for (JsonNode person : nodes(people, "results").stream().limit(5).toList()) {
-                if (items.size() >= 12) break;
-                long id = person.path("id").asLong();
-                String personName = text(person, "name");
-                JsonNode credits = get("/person/" + id + "/combined_credits", Map.of());
-                List<JsonNode> works = new ArrayList<>();
-                nodes(credits, "cast").forEach(works::add);
-                nodes(credits, "crew").forEach(works::add);
-                works.stream().filter(w -> "movie".equals(w.path("media_type").asText()) || "tv".equals(w.path("media_type").asText()))
-                    .sorted(Comparator.comparing((JsonNode w) -> date(w)).reversed())
-                    .distinct().limit(6).forEach(w -> {
-                        Map<String,Object> item = enrich(w, w.path("media_type").asText());
-                        item.put("matchedPerson", personName);
-                        String role = text(w, "character");
-                        if (role.isBlank()) role = text(w, "job");
-                        item.put("matchedRole", role);
-                        items.add(item);
-                    });
-            }
-        } else {
-            String endpoint = "movie".equals(mode) ? "/search/movie" : "tv".equals(mode) ? "/search/tv" : "/search/multi";
-            JsonNode result = get(endpoint, Map.of("query", q, "include_adult", "false"));
-            for (JsonNode node : nodes(result, "results").stream().limit(12).toList()) {
-                String mediaType = "movie".equals(mode) ? "movie" : "tv".equals(mode) ? "tv" : node.path("media_type").asText();
-                if (!"movie".equals(mediaType) && !"tv".equals(mediaType)) continue;
-                items.add(enrich(node, mediaType));
-            }
+        if (q.length() < 2) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "검색어를 2자 이상 입력해 주세요.");
         }
-        return Map.of("results", items, "total", items.size(), "source", "TMDB");
+
+        String mode = kind == null ? "all" : kind.toLowerCase(Locale.ROOT);
+        if (!Set.of("all", "movie", "person", "tv").contains(mode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 검색 유형입니다.");
+        }
+        if ("tv".equals(mode)) {
+            throw new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED,
+                    "KOBIS는 영화·영화인 데이터만 제공합니다. 드라마·예능은 검증 가능한 별도 시리즈 데이터 연동 후 제공할 예정입니다.");
+        }
+
+        requireKey();
+        List<Map<String, Object>> items =
+                "person".equals(mode) ? searchPeople(q) : searchMovies(q);
+
+        return Map.of(
+                "results", items,
+                "total", items.size(),
+                "source", "KOBIS",
+                "supportedKinds", List.of("movie", "person"),
+                "ottAvailability", "NOT_INTEGRATED"
+        );
     }
 
-    private Map<String,Object> enrich(JsonNode node, String type) {
-        long id = node.path("id").asLong();
-        JsonNode detail = get("/" + type + "/" + id, Map.of("append_to_response", "credits"));
-        JsonNode providers = get("/" + type + "/" + id + "/watch/providers", Map.of());
-        JsonNode kr = providers.path("results").path("KR");
-        String release = type.equals("movie") ? text(detail, "release_date") : text(detail, "first_air_date");
-        String status = text(detail, "status");
-        String state = state(type, status, release);
-        Map<String,Object> out = new LinkedHashMap<>();
-        out.put("id", id);
-        out.put("mediaType", type);
-        out.put("mediaLabel", type.equals("movie") ? "영화" : "TV 프로그램");
-        out.put("title", first(text(detail,"title"), text(detail,"name"), text(node,"title"), text(node,"name")));
-        out.put("originalTitle", first(text(detail,"original_title"), text(detail,"original_name")));
-        out.put("overview", first(text(detail,"overview"), text(node,"overview")));
-        out.put("releaseDate", release);
-        out.put("year", release.length() >= 4 ? release.substring(0,4) : "");
+    private List<Map<String, Object>> searchMovies(String query) {
+        JsonNode response = get("/movie/searchMovieList.json",
+                Map.of("movieNm", query, "itemPerPage", "10"));
+        List<Map<String, Object>> results = new ArrayList<>();
+
+        for (JsonNode movie : children(response.path("movieListResult"), "movieList")) {
+            String movieCode = value(movie, "movieCd");
+            if (movieCode.isBlank()) continue;
+            JsonNode detailResponse = get("/movie/searchMovieInfo.json",
+                    Map.of("movieCd", movieCode));
+            JsonNode detail = detailResponse.path("movieInfoResult").path("movieInfo");
+            results.add(toMovie(detail, movie));
+        }
+        return results;
+    }
+
+    private List<Map<String, Object>> searchPeople(String query) {
+        JsonNode response = get("/people/searchPeopleList.json",
+                Map.of("peopleNm", query, "itemPerPage", "10"));
+        List<Map<String, Object>> results = new ArrayList<>();
+        Set<String> seenMovies = new HashSet<>();
+
+        for (JsonNode person : children(response.path("peopleListResult"), "peopleList")) {
+            String peopleCode = value(person, "peopleCd");
+            String personName = value(person, "peopleNm");
+            if (peopleCode.isBlank()) continue;
+
+            JsonNode detailResponse = get("/people/searchPeopleInfo.json",
+                    Map.of("peopleCd", peopleCode));
+            JsonNode detail = detailResponse.path("peopleInfoResult").path("peopleInfo");
+            for (JsonNode film : children(detail.path("filmos"), "filmo")) {
+                String movieCode = value(film, "movieCd");
+                if (movieCode.isBlank() || !seenMovies.add(movieCode)) continue;
+
+                JsonNode movieResponse = get("/movie/searchMovieInfo.json",
+                        Map.of("movieCd", movieCode));
+                JsonNode movieDetail = movieResponse.path("movieInfoResult").path("movieInfo");
+                Map<String, Object> item = toMovie(movieDetail, film);
+                item.put("matchedPerson", personName);
+                item.put("matchedRole", value(film, "moviePartNm"));
+                results.add(item);
+                if (results.size() >= 12) return results;
+            }
+        }
+        return results;
+    }
+
+    private Map<String, Object> toMovie(JsonNode detail, JsonNode fallback) {
+        String title = first(value(detail, "movieNm"), value(fallback, "movieNm"));
+        String release = first(value(detail, "openDt"), value(fallback, "openDt"));
+        String state = state(release);
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", first(value(detail, "movieCd"), value(fallback, "movieCd")));
+        out.put("mediaType", "movie");
+        out.put("mediaLabel", "영화");
+        out.put("title", title);
+        out.put("originalTitle", first(value(detail, "movieNmEn"), value(fallback, "movieNmEn")));
+        out.put("overview", "");
+        out.put("releaseDate", normalizeDate(release));
+        out.put("year", first(value(detail, "prdtYear"), value(fallback, "prdtYear"),
+                release.length() >= 4 ? release.substring(0, 4) : ""));
         out.put("status", state);
         out.put("statusLabel", stateLabel(state));
-        out.put("posterUrl", image(text(detail,"poster_path"), "w342"));
-        out.put("backdropUrl", image(text(detail,"backdrop_path"), "w780"));
-        out.put("rating", detail.path("vote_average").isNumber() ? detail.path("vote_average").asDouble() : 0);
-        out.put("genres", nodes(detail,"genres").stream().map(g -> text(g,"name")).filter(s -> !s.isBlank()).toList());
-        List<Map<String,Object>> cast = new ArrayList<>();
-        for (JsonNode person : nodes(detail.path("credits"),"cast").stream().limit(8).toList()) {
-            cast.add(Map.of("name", text(person,"name"), "role", text(person,"character")));
-        }
-        out.put("cast", cast);
-        out.put("providers", providerGroups(kr));
-        out.put("providerLink", text(kr,"link"));
-        out.put("ottChecked", true);
-        return out;
-    }
+        out.put("posterUrl", "");
+        out.put("backdropUrl", "");
+        out.put("rating", 0);
+        out.put("genres", children(detail.path("genres"), "genre").stream()
+                .map(g -> value(g, "genreNm")).filter(s -> !s.isBlank()).distinct().toList());
 
-    private List<Map<String,Object>> providerGroups(JsonNode kr) {
-        List<Map<String,Object>> out = new ArrayList<>();
-        for (String key : List.of("flatrate","free","ads","rent","buy")) {
-            String label = switch (key) {
-                case "flatrate" -> "구독 스트리밍";
-                case "free" -> "무료";
-                case "ads" -> "광고 포함";
-                case "rent" -> "대여";
-                default -> "구매";
-            };
-            for (JsonNode p : nodes(kr,key)) {
-                Map<String,Object> row = new LinkedHashMap<>();
-                row.put("name", text(p,"provider_name"));
-                row.put("logoUrl", image(text(p,"logo_path"),"w92"));
-                row.put("category", label);
-                out.add(row);
+        List<Map<String, String>> cast = new ArrayList<>();
+        for (JsonNode actor : children(detail.path("actors"), "actor").stream().limit(8).toList()) {
+            String name = value(actor, "peopleNm");
+            if (!name.isBlank()) {
+                cast.add(Map.of("name", name, "role", value(actor, "cast")));
             }
         }
+        out.put("cast", cast);
+
+        // OTT 제공 정보는 KOBIS 응답에 없으므로 비어 있는 상태를 명시한다.
+        out.put("providers", List.of());
+        out.put("providerLink", "");
+        out.put("ottChecked", false);
+        out.put("ottStatus", "NOT_INTEGRATED");
+        out.put("dataSource", "KOBIS");
         return out;
     }
 
-    private String state(String type, String status, String date) {
-        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        LocalDate release = null;
-        try { if (!date.isBlank()) release = LocalDate.parse(date); } catch (Exception ignored) {}
-        if (release != null && release.isAfter(today)) return "upcoming";
-        if ("movie".equals(type)) return release == null ? "unknown" : "ended";
-        if ("Ended".equals(status) || "Canceled".equals(status)) return "ended";
-        if ("Planned".equals(status) || "In Production".equals(status)) return "upcoming";
-        if ("Returning Series".equals(status)) return "airing";
-        return release == null ? "unknown" : "ended";
-    }
-
-    private JsonNode get(String path, Map<String,String> params) {
+    private JsonNode get(String path, Map<String, String> params) {
         UriComponentsBuilder uri = UriComponentsBuilder.fromUriString(BASE + path)
-                .queryParam("language", "ko-KR");
-        if (readAccessToken.isBlank()) uri.queryParam("api_key", apiKey);
+                .queryParam("key", apiKey)
+                .queryParam("itemPerPage", "10");
         params.forEach(uri::queryParam);
         try {
-            return client.get()
+            JsonNode response = client.get()
                     .uri(uri.build().encode().toUri())
-                    .headers(headers -> {
-                        if (!readAccessToken.isBlank()) headers.setBearerAuth(readAccessToken);
-                    })
                     .retrieve()
                     .body(JsonNode.class);
+            if (response == null || response.has("faultInfo")) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                        "KOBIS에서 정상적인 응답을 받지 못했습니다. API 키와 요청 한도를 확인해 주세요.");
+            }
+            return response;
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                        "TMDB 인증에 실패했습니다. .env의 TMDB_API_KEY 또는 TMDB_API_READ_ACCESS_TOKEN 값을 확인해 주세요.");
+                        "KOBIS 인증에 실패했습니다. .env의 KOBIS_API_KEY를 확인해 주세요.");
             }
             if (e.getStatusCode().value() == 429) {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                        "TMDB 요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.");
+                        "KOBIS 요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.");
             }
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "TMDB 콘텐츠 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                    "KOBIS 영화 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
         }
     }
 
     private void requireKey() {
-        if (apiKey.isBlank() && readAccessToken.isBlank()) {
+        if (apiKey.isBlank()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                "TMDB 인증 정보가 없습니다. 프로젝트 루트 .env에 TMDB_API_KEY 또는 TMDB_API_READ_ACCESS_TOKEN을 설정해 주세요.");
+                    "KOBIS API 인증 정보가 없습니다. 프로젝트 루트 .env에 KOBIS_API_KEY를 설정해 주세요.");
         }
     }
-    private static List<JsonNode> nodes(JsonNode node, String field) {
-        List<JsonNode> out = new ArrayList<>();
-        JsonNode arr = node.path(field);
-        if (arr.isArray()) arr.forEach(out::add);
-        return out;
+
+    private static List<JsonNode> children(JsonNode parent, String field) {
+        List<JsonNode> result = new ArrayList<>();
+        JsonNode node = parent.path(field);
+        if (node.isArray()) node.forEach(result::add);
+        else if (node.isObject()) result.add(node);
+        return result;
     }
-    private static String text(JsonNode n, String field) { return n.path(field).asText(""); }
-    private static String first(String... values) { for (String v : values) if (v != null && !v.isBlank()) return v; return ""; }
-    private static String date(JsonNode n) { return first(text(n,"release_date"),text(n,"first_air_date")); }
-    private static String image(String path, String size) { return path.isBlank() ? "" : "https://image.tmdb.org/t/p/"+size+path; }
+
+    private static String value(JsonNode node, String field) {
+        return node.path(field).asText("");
+    }
+
+    private static String first(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return "";
+    }
+
+    private static String state(String openDate) {
+        if (openDate == null || openDate.isBlank()) return "unknown";
+        try {
+            LocalDate release = LocalDate.parse(openDate, DateTimeFormatter.BASIC_ISO_DATE);
+            return release.isAfter(LocalDate.now(KOREA)) ? "upcoming" : "ended";
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private static String normalizeDate(String date) {
+        if (date == null || date.length() != 8) return date == null ? "" : date;
+        return date.substring(0, 4) + "-" + date.substring(4, 6) + "-" + date.substring(6, 8);
+    }
+
     private static String stateLabel(String state) {
-        return switch(state) { case "airing" -> "방영 중"; case "upcoming" -> "방영/개봉 예정"; case "ended" -> "종영/개봉 완료"; default -> "정보 확인 필요"; };
+        return switch (state) {
+            case "upcoming" -> "개봉 예정";
+            case "ended" -> "개봉 완료";
+            default -> "정보 확인 필요";
+        };
     }
 }
