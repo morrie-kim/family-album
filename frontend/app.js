@@ -404,7 +404,7 @@
       nextCtx.fillStyle="#171c20";nextCtx.fillRect(0,0,120,120);
       if(next){const m=next.matrix,ox=Math.floor((4-m[0].length)/2),oy=Math.floor((4-m.length)/2);m.forEach((r,y)=>r.forEach((v,x)=>{if(v)cell(nextCtx,ox+x,oy+y,colors[next.type+1],28);}));}
     }
-    function collide(p){return p.matrix.some((r,y)=>r.some((v,x)=>v&&(p.y+y>=ROWS||p.x+x<0||p.x+x>=COLS||board[p.y+y]?.[p.x+x]!==0));}
+    function collide(p){return p.matrix.some((r,y)=>r.some((v,x)=>v&&(p.y+y>=ROWS||p.x+x<0||p.x+x>=COLS||board[p.y+y]?.[p.x+x]!==0)));}
     function merge(){player.matrix.forEach((r,y)=>r.forEach((v,x)=>{if(v&&board[player.y+y])board[player.y+y][player.x+x]=player.type+1;}));}
     function spawn(){player=next||piece();next=piece();player.x=Math.floor(COLS/2)-Math.ceil(player.matrix[0].length/2);player.y=0;if(collide(player))endGame();draw();}
     function updateScore(){document.getElementById("tetrisScore").textContent=score;document.getElementById("tetrisLevel").textContent=level;}
