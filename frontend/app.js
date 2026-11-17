@@ -12,6 +12,7 @@
   let activeFolder = "";
   let selectedWorldcup = null;
   let currentMatch = null;
+  let activeMiniGameCleanup = null;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
@@ -59,10 +60,10 @@
   const shell = (title, content, active = "photos") => {
     app.innerHTML = `
       <header class="topbar"><a class="brand" href="#photos">▧ 가족앨범</a>
-        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a></nav>
+        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${active==="tetris"?"on":""}" href="#tetris">미니게임</a></nav>
         <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">로그아웃</button>
       </header><main class="wrap"><div class="pagehead"><h1>${title}</h1></div>${content}</main>
-      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a></nav>`;
+      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#tetris">게임</a></nav>`;
     document.getElementById("logout").onclick = logout;
   };
   function renderAuth(message = "") {
@@ -381,6 +382,49 @@
       <h2>가족 랭킹</h2><ol class="ranking">${ranking.rows.map(r=>`<li><b>${r.rank}위</b> ${esc(r.entry.label||r.entry.photoName)} <span>${r.champions}회 우승 · ${r.wins}승 · 승률 ${r.winRatePercent}%</span></li>`).join("")}</ol><a class="btn secondary" href="#worldcups/${id}">월드컵으로</a></section>`,"worldcups");
   }
 
+  async function renderTetris() {
+    shell("테트리스", '<section class="panel tetris-panel"><div class="tetris-toolbar"><div><span class="muted">점수</span><strong id="tetrisScore">0</strong></div><div><span class="muted">최고 점수</span><strong id="tetrisBest">0</strong></div><div><span class="muted">레벨</span><strong id="tetrisLevel">1</strong></div></div><div class="tetris-layout"><div class="tetris-board-wrap"><canvas id="tetrisBoard" width="300" height="600" aria-label="테트리스 게임 보드"></canvas></div><aside class="tetris-side"><h3>다음 블록</h3><canvas id="tetrisNext" width="120" height="120"></canvas><p class="muted" id="tetrisStatus">게임을 시작해 보세요.</p><button class="btn primary" id="tetrisStart">게임 시작</button><button class="btn secondary" id="tetrisPause" disabled>일시정지</button><button class="btn ghost" id="tetrisRestart">다시 시작</button><div class="tetris-help"><b>조작 방법</b><span>← → 이동</span><span>↓ 빠르게 내리기</span><span>↑ 회전</span><span>Space 즉시 떨어뜨리기</span><span>P 일시정지</span></div></aside></div><div class="tetris-touch" aria-label="터치 조작"><button data-tetris="left" aria-label="왼쪽">←</button><button data-tetris="rotate" aria-label="회전">↻</button><button data-tetris="right" aria-label="오른쪽">→</button><button data-tetris="down" aria-label="아래">↓</button><button data-tetris="drop" aria-label="즉시 떨어뜨리기">⤓</button></div></section>',"tetris");
+    const canvas=document.getElementById("tetrisBoard"),ctx=canvas.getContext("2d");
+    const nextCanvas=document.getElementById("tetrisNext"),nextCtx=nextCanvas.getContext("2d");
+    const COLS=10,ROWS=20,SIZE=30,bestKey="familyAlbumTetrisBest";
+    const colors=[null,"#35a7a0","#3978c5","#e49b36","#d5bd39","#805bc4","#d45d79","#55a65b"];
+    const shapes=[[[1,1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1],[1,1]],[[0,1,1],[1,1,0]],[[0,1,0],[1,1,1]],[[1,1,0],[0,1,1]]];
+    let board,player,next,score=0,lines=0,level=1,running=false,paused=false,timer=null;
+    const bestEl=document.getElementById("tetrisBest");
+    try{bestEl.textContent=localStorage.getItem(bestKey)||"0";}catch{}
+    const matrix=()=>Array.from({length:ROWS},()=>Array(COLS).fill(0));
+    function piece(){const type=Math.floor(Math.random()*shapes.length),m=shapes[type].map(r=>r.slice());return {matrix:m,type,x:Math.floor(COLS/2)-Math.ceil(m[0].length/2),y:0};}
+    function cell(c,x,y,color,size){c.fillStyle=color;c.fillRect(x*size+1,y*size+1,size-2,size-2);c.fillStyle="rgba(255,255,255,.2)";c.fillRect(x*size+3,y*size+3,size-6,3);}
+    function draw(){
+      ctx.fillStyle="#171c20";ctx.fillRect(0,0,canvas.width,canvas.height);ctx.strokeStyle="#ffffff12";
+      for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(x*SIZE,0);ctx.lineTo(x*SIZE,canvas.height);ctx.stroke();}
+      for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*SIZE);ctx.lineTo(canvas.width,y*SIZE);ctx.stroke();}
+      board.forEach((r,y)=>r.forEach((v,x)=>{if(v)cell(ctx,x,y,colors[v],SIZE);}));
+      if(player)player.matrix.forEach((r,y)=>r.forEach((v,x)=>{if(v)cell(ctx,player.x+x,player.y+y,colors[player.type+1],SIZE);}));
+      nextCtx.fillStyle="#171c20";nextCtx.fillRect(0,0,120,120);
+      if(next){const m=next.matrix,ox=Math.floor((4-m[0].length)/2),oy=Math.floor((4-m.length)/2);m.forEach((r,y)=>r.forEach((v,x)=>{if(v)cell(nextCtx,ox+x,oy+y,colors[next.type+1],28);}));}
+    }
+    function collide(p){return p.matrix.some((r,y)=>r.some((v,x)=>v&&(p.y+y>=ROWS||p.x+x<0||p.x+x>=COLS||board[p.y+y]?.[p.x+x]!==0));}
+    function merge(){player.matrix.forEach((r,y)=>r.forEach((v,x)=>{if(v&&board[player.y+y])board[player.y+y][player.x+x]=player.type+1;}));}
+    function spawn(){player=next||piece();next=piece();player.x=Math.floor(COLS/2)-Math.ceil(player.matrix[0].length/2);player.y=0;if(collide(player))endGame();draw();}
+    function updateScore(){document.getElementById("tetrisScore").textContent=score;document.getElementById("tetrisLevel").textContent=level;}
+    function setSpeed(){if(timer)clearInterval(timer);if(running&&!paused)timer=setInterval(step,Math.max(90,650-(level-1)*55));}
+    function sweep(){let cleared=0;outer:for(let y=ROWS-1;y>=0;y--){for(let x=0;x<COLS;x++)if(!board[y][x])continue outer;board.splice(y,1);board.unshift(Array(COLS).fill(0));cleared++;y++;}if(cleared){lines+=cleared;score+=[0,100,300,500,800][cleared]*level;level=1+Math.floor(lines/10);updateScore();setSpeed();}}
+    function step(){if(!running||paused)return;player.y++;if(collide(player)){player.y--;merge();sweep();spawn();}draw();}
+    function endGame(){running=false;if(timer)clearInterval(timer);timer=null;document.getElementById("tetrisStatus").textContent="게임 오버! 점수 "+score+"점";document.getElementById("tetrisStart").disabled=false;document.getElementById("tetrisPause").disabled=true;try{const best=Number(localStorage.getItem(bestKey)||0);if(score>best){localStorage.setItem(bestKey,String(score));bestEl.textContent=score;}}catch{}}
+    function start(){if(timer)clearInterval(timer);board=matrix();score=0;lines=0;level=1;running=true;paused=false;next=piece();updateScore();spawn();document.getElementById("tetrisStatus").textContent="플레이 중";document.getElementById("tetrisStart").disabled=true;document.getElementById("tetrisPause").disabled=false;document.getElementById("tetrisPause").textContent="일시정지";setSpeed();}
+    function pause(){if(!running)return;paused=!paused;document.getElementById("tetrisPause").textContent=paused?"계속하기":"일시정지";document.getElementById("tetrisStatus").textContent=paused?"일시정지 중":"플레이 중";setSpeed();}
+    function move(dx){if(!running||paused)return;player.x+=dx;if(collide(player))player.x-=dx;draw();}
+    function rotate(){if(!running||paused)return;const old=player.matrix;player.matrix=old[0].map((_,i)=>old.map(r=>r[i]).reverse());let offset=0;while(collide(player)){player.x+=offset===0?1:offset>0?-(offset*2+1):-(offset*2);offset++;if(offset>5){player.matrix=old;player.x-=offset;break;}}draw();}
+    function drop(){if(!running||paused)return;let distance=0;do{player.y++;distance++;}while(!collide(player));player.y--;score+=Math.max(0,distance-1)*2;merge();sweep();spawn();updateScore();draw();}
+    function keydown(e){if(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp"," "].includes(e.key))e.preventDefault();if(e.key==="ArrowLeft")move(-1);else if(e.key==="ArrowRight")move(1);else if(e.key==="ArrowDown")step();else if(e.key==="ArrowUp")rotate();else if(e.key===" ")drop();else if(e.key.toLowerCase()==="p")pause();}
+    document.addEventListener("keydown",keydown);
+    document.getElementById("tetrisStart").onclick=start;document.getElementById("tetrisRestart").onclick=start;document.getElementById("tetrisPause").onclick=pause;
+    document.querySelectorAll("[data-tetris]").forEach(b=>b.onclick=()=>{const a=b.dataset.tetris;if(a==="left")move(-1);else if(a==="right")move(1);else if(a==="rotate")rotate();else if(a==="down")step();else if(a==="drop")drop();});
+    board=matrix();player=null;next=piece();updateScore();draw();
+    activeMiniGameCleanup=()=>{if(timer)clearInterval(timer);timer=null;running=false;document.removeEventListener("keydown",keydown);activeMiniGameCleanup=null;};
+  }
+
   async function renderContents() {
     shell("콘텐츠 찾기",`
       <section class="panel content-search">
@@ -487,12 +531,14 @@
   }
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
   async function renderRoute() {
+    if(activeMiniGameCleanup)activeMiniGameCleanup();
     const parts=route(), page=parts[0];
     if(page==="photos") {activeFolder=new URLSearchParams(location.hash.split("?")[1]||"").get("folder")||"";await renderPhotos();}
     else if(page==="family") await renderFamily();
     else if(page==="folder") await renderFolder(parts);
     else if(page==="google") await renderGoogle();
     else if(page==="contents") await renderContents();
+    else if(page==="tetris") await renderTetris();
     else if(page==="worldcups"&&parts[1]==="new") await renderWorldcupNew();
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays"&&parts[4]==="result") await renderWorldcupResult(parts[1],parts[3]);
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays") await renderPlay(parts[1],parts[3]);
