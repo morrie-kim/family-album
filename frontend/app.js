@@ -568,7 +568,7 @@
       const tags=el.tags||{}, lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon;
       if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
       const isSubway=tags.railway==="subway_entrance"||/subway|metro|지하철/i.test((tags.station||"")+" "+(tags.railway||"")+" "+(tags.name||""));
-      const isRail=tags.railway==="station"||tags.railway==="halt"||tags.station==="train";
+      const isRail=tags.railway==="station"||tags.railway==="halt"||tags.railway==="platform"||tags.station==="train";
       const isBus=tags.highway==="bus_stop"||tags.public_transport==="platform"&&!isSubway&&!isRail;
       if(!isSubway&&!isRail&&!isBus)return null;
       const type=isSubway?"지하철역":isRail?"기차역":"버스정류장";
