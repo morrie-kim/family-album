@@ -1,58 +1,6 @@
-const isBackendRequest = (pathname) =>
-  pathname.startsWith("/api/") || pathname === "/google/callback";
-
-export default {
-  async fetch(request, env) {
-    const incomingUrl = new URL(request.url);
-
-    // 정적 SPA 파일은 Workers Static Assets가 직접 제공합니다.
-    if (!isBackendRequest(incomingUrl.pathname)) {
-      return env.ASSETS.fetch(request);
-    }
-
-    if (!env.BACKEND_ORIGIN) {
-      return new Response("Backend tunnel is not configured. Start scripts/cloudflare-worker-up.sh.", {
-        status: 503,
-        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" }
-      });
-    }
-
-    let backendOrigin;
-    try {
-      backendOrigin = new URL(env.BACKEND_ORIGIN);
-    } catch {
-      return new Response("Invalid BACKEND_ORIGIN configuration.", { status: 500 });
-    }
-
-    if (backendOrigin.protocol !== "https:") {
-      return new Response("BACKEND_ORIGIN must use HTTPS.", { status: 500 });
-    }
-
-    const targetUrl = new URL(
-      incomingUrl.pathname + incomingUrl.search,
-      backendOrigin.origin
-    );
-
-    const headers = new Headers(request.headers);
-    headers.set("X-Forwarded-Host", incomingUrl.host);
-    headers.set("X-Forwarded-Proto", incomingUrl.protocol.slice(0, -1));
-    headers.set("X-Forwarded-Port", incomingUrl.port || "443");
-
-    const init = {
-      method: request.method,
-      headers,
-      redirect: "manual"
-    };
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      init.body = request.body;
-    }
-
-    // 브라우저의 세션/CSRF 쿠키와 백엔드 Set-Cookie를 같은 Worker Origin으로 전달합니다.
-    const upstream = await fetch(new Request(targetUrl, init));
-    return new Response(upstream.body, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-      headers: upstream.headers
-    });
-  }
-};
+const isBackendRequest=p=>p.startsWith("/api/")||p==="/google/callback";
+const OVERPASS=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://z.overpass-api.de/api/interpreter"];
+function queries(lat,lon){const a="around:2200,"+lat+","+lon;return{bus:'[out:json][timeout:18];(node('+a+')[highway=bus_stop];node('+a+')[public_transport=platform][bus=yes];);out center tags;',subway:'[out:json][timeout:18];(node('+a+')[railway=subway_entrance];node('+a+')[railway=station][station=subway];way('+a+')[railway=station][station=subway];);out center tags;',train:'[out:json][timeout:18];(node('+a+')[railway=station][station!=subway];node('+a+')[railway=halt];node('+a+')[railway=platform];way('+a+')[railway=station][station!=subway];way('+a+')[railway=platform];);out center tags;'};}
+async function query(q){let last;for(const endpoint of OVERPASS){const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),18000);try{const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(q),signal:ac.signal});if(!r.ok)throw Error("Overpass HTTP "+r.status);return(await r.json()).elements||[];}catch(e){last=e;}finally{clearTimeout(timer);}}throw last||Error("Overpass unavailable");}
+function stream(lat,lon){const enc=new TextEncoder(),body=new ReadableStream({async start(c){const send=(event,data)=>{try{c.enqueue(enc.encode("event: "+event+"\\ndata: "+JSON.stringify(data)+"\\n\\n"));}catch{}};send("progress",{message:"교통편 조회 시작",percent:15});let n=0;await Promise.all(Object.entries(queries(lat,lon)).map(async([category,q])=>{try{send("category",{category,elements:await query(q)});}catch(e){send("error",{category,message:e?.name==="AbortError"?"요청 시간 초과":"외부 지도 데이터 서버 응답 실패"});}finally{n++;send("progress",{message:"교통편 조회 중 ("+n+"/3)",percent:20+Math.round(n/3*75)});}}));send("done",{completed:n,total:3});try{c.close();}catch{}}});return new Response(body,{headers:{"Content-Type":"text/event-stream; charset=utf-8","Cache-Control":"no-cache, no-transform","X-Accel-Buffering":"no"}});}
+export default{async fetch(request,env){const u=new URL(request.url);if(u.pathname==="/meet/transit/stream"){if(request.method!=="GET")return new Response("Method Not Allowed",{status:405});const lat=Number(u.searchParams.get("lat")),lon=Number(u.searchParams.get("lon"));if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180)return new Response("Invalid coordinates",{status:400});return stream(lat,lon);}if(!isBackendRequest(u.pathname))return env.ASSETS.fetch(request);if(!env.BACKEND_ORIGIN)return new Response("Backend tunnel is not configured. Start scripts/cloudflare-worker-up.sh.",{status:503,headers:{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"no-store"}});let origin;try{origin=new URL(env.BACKEND_ORIGIN);}catch{return new Response("Invalid BACKEND_ORIGIN configuration.",{status:500});}if(origin.protocol!=="https:")return new Response("BACKEND_ORIGIN must use HTTPS.",{status:500});const target=new URL(u.pathname+u.search,origin.origin),headers=new Headers(request.headers);headers.set("X-Forwarded-Host",u.host);headers.set("X-Forwarded-Proto",u.protocol.slice(0,-1));headers.set("X-Forwarded-Port",u.port||"443");const init={method:request.method,headers,redirect:"manual"};if(request.method!=="GET"&&request.method!=="HEAD")init.body=request.body;const upstream=await fetch(new Request(target,init));return new Response(upstream.body,{status:upstream.status,statusText:upstream.statusText,headers:upstream.headers});}};
