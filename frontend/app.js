@@ -60,10 +60,10 @@
   const shell = (title, content, active = "photos") => {
     app.innerHTML = `
       <header class="topbar"><a class="brand" href="#photos">▧ 가족앨범</a>
-        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${active==="tetris"?"on":""}" href="#tetris">미니게임</a></nav>
+        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${active==="tetris"?"on":""}" href="#tetris">미니게임</a><a class="${active==="utilities"?"on":""}" href="#utilities">유틸</a></nav>
         <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">로그아웃</button>
       </header><main class="wrap"><div class="pagehead"><h1>${title}</h1></div>${content}</main>
-      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#tetris">게임</a></nav>`;
+      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#tetris">게임</a><a href="#utilities">유틸</a></nav>`;
     document.getElementById("logout").onclick = logout;
   };
   function renderAuth(message = "") {
@@ -529,6 +529,115 @@
       }
     };
   }
+
+  async function renderUtilities() {
+    shell("유틸",'<section class="panel utility-card"><div class="utility-icon">📍</div><div><h2>중간에서 만나</h2><p class="muted">두 장소를 검색하면 지리적 중간 지점과 주변 버스정류장·지하철역·기차역을 지도에서 확인할 수 있습니다.</p><a class="btn primary" href="#utilities/meet">중간에서 만나 시작하기</a></div></section>',"utilities");
+  }
+  let meetMap = null;
+  async function loadLeaflet() {
+    if (window.L) return;
+    if (!document.getElementById("leaflet-css")) {
+      const link=document.createElement("link");link.id="leaflet-css";link.rel="stylesheet";
+      link.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(link);
+    }
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement("script");script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload=resolve;script.onerror=()=>reject(new Error("지도 라이브러리를 불러오지 못했습니다."));document.head.appendChild(script);
+    });
+  }
+  async function searchPlaces(query) {
+    const url="https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=kr&limit=6&q="+encodeURIComponent(query);
+    const response=await fetch(url,{headers:{"Accept-Language":"ko"}});
+    if(!response.ok)throw new Error("장소 검색에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    return response.json();
+  }
+  function geoMidpoint(a,b) {
+    const rad=Math.PI/180, lon1=a.lon*rad, lat1=a.lat*rad, lon2=b.lon*rad, lat2=b.lat*rad;
+    const bx=Math.cos(lat2)*Math.cos(lon2-lon1), by=Math.cos(lat2)*Math.sin(lon2-lon1);
+    const lat=Math.atan2(Math.sin(lat1)+Math.sin(lat2),Math.sqrt((Math.cos(lat1)+bx)**2+by**2));
+    const lon=lon1+Math.atan2(by,Math.cos(lat1)+bx);
+    return {lat:lat/rad,lon:((lon/rad+540)%360)-180};
+  }
+  async function searchTransit(mid) {
+    const q='[out:json][timeout:25];(node(around:2200,'+mid.lat+','+mid.lon+')[highway=bus_stop];node(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];node(around:2200,'+mid.lat+','+mid.lon+')[railway=station];node(around:2200,'+mid.lat+','+mid.lon+')[railway=subway_entrance];way(around:2200,'+mid.lat+','+mid.lon+')[railway=station];way(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];);out center tags;';
+    const response=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(q)});
+    if(!response.ok)throw new Error("주변 대중교통 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    const data=await response.json();
+    const seen=new Set();
+    return (data.elements||[]).map(el=>{
+      const tags=el.tags||{}, lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon;
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;
+      const isSubway=tags.railway==="subway_entrance"||/subway|metro|지하철/i.test((tags.station||"")+" "+(tags.railway||"")+" "+(tags.name||""));
+      const isRail=tags.railway==="station"||tags.railway==="halt"||tags.station==="train";
+      const isBus=tags.highway==="bus_stop"||tags.public_transport==="platform"&&!isSubway&&!isRail;
+      if(!isSubway&&!isRail&&!isBus)return null;
+      const type=isSubway?"지하철역":isRail?"기차역":"버스정류장";
+      const name=tags["name:ko"]||tags.name||type;
+      const key=type+"|"+name+"|"+lat.toFixed(5)+"|"+lon.toFixed(5);
+      if(seen.has(key))return null;seen.add(key);
+      const dLat=(lat-mid.lat)*111.32,dLon=(lon-mid.lon)*111.32*Math.cos(mid.lat*Math.PI/180);
+      return {id:el.id,type,name,lat,lon,distance:Math.round(Math.hypot(dLat,dLon)*1000)};
+    }).filter(Boolean).sort((x,y)=>x.distance-y.distance);
+  }
+  async function renderMeet() {
+    shell("중간에서 만나",'<section class="panel meet-panel"><p class="muted">출발지와 도착지를 각각 검색하고, 정확히 일치하는 주소나 장소를 선택해 주세요. 두 위치의 대권 경로상 중간점을 계산합니다.</p><div class="meet-inputs"><div class="meet-location"><label for="meetFrom">첫 번째 위치</label><div class="meet-search-row"><input id="meetFrom" placeholder="예: 서울역, 경기도 성남시 분당구..." autocomplete="off"><button class="btn secondary" id="searchFrom">검색</button></div><div id="fromChoices" class="meet-choices"></div><p id="fromSelected" class="meet-selected">선택된 위치 없음</p></div><div class="meet-location"><label for="meetTo">두 번째 위치</label><div class="meet-search-row"><input id="meetTo" placeholder="예: 강남역, 인천광역시 연수구..." autocomplete="off"><button class="btn secondary" id="searchTo">검색</button></div><div id="toChoices" class="meet-choices"></div><p id="toSelected" class="meet-selected">선택된 위치 없음</p></div></div><button id="findMeet" class="btn primary meet-submit" disabled>중간 지점 및 교통편 찾기</button><p id="meetStatus" class="muted" aria-live="polite">주소 검색은 OpenStreetMap, 대중교통 위치는 OpenStreetMap 데이터로 조회합니다.</p></section><section id="meetResults" hidden><div class="panel meet-summary" id="meetSummary"></div><div id="meetMap" class="meet-map"></div><div class="panel"><h2>주변 대중교통</h2><div id="meetTransit" class="meet-transit"></div><p class="meet-credit">지도 © OpenStreetMap contributors · 주소 검색 Nominatim · 주변 시설 Overpass API</p></div></section>',"utilities");
+    let from=null,to=null;
+    const status=document.getElementById("meetStatus");
+    async function search(which) {
+      const input=document.getElementById(which==="from"?"meetFrom":"meetTo");
+      const box=document.getElementById(which==="from"?"fromChoices":"toChoices");
+      const selectedEl=document.getElementById(which==="from"?"fromSelected":"toSelected");
+      const query=input.value.trim();if(query.length<2){toast("장소를 두 글자 이상 입력해 주세요.");return;}
+      box.textContent="검색 중…";
+      try {
+        const results=await searchPlaces(query);box.innerHTML="";
+        if(!results.length){box.textContent="검색 결과가 없습니다. 도로명 주소나 건물명을 더 구체적으로 입력해 주세요.";return;}
+        results.forEach(place=>{
+          const button=document.createElement("button");button.type="button";button.className="meet-choice";
+          button.textContent=place.display_name;button.onclick=()=>{
+            const value={lat:Number(place.lat),lon:Number(place.lon),name:place.name||place.display_name,display:place.display_name};
+            if(which==="from")from=value;else to=value;
+            selectedEl.textContent="선택됨: "+value.display;box.innerHTML="";updateButton();
+          };box.appendChild(button);
+        });
+      } catch(error){box.textContent=error.message;}
+    }
+    function updateButton(){document.getElementById("findMeet").disabled=!(from&&to);}
+    document.getElementById("searchFrom").onclick=()=>search("from");
+    document.getElementById("searchTo").onclick=()=>search("to");
+    document.getElementById("meetFrom").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();search("from");}};
+    document.getElementById("meetTo").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();search("to");}};
+    document.getElementById("findMeet").onclick=async()=>{
+      if(!from||!to)return;
+      const button=document.getElementById("findMeet");button.disabled=true;status.textContent="중간 지점과 주변 대중교통을 검색하고 있습니다…";
+      try{
+        const mid=geoMidpoint(from,to), transit=await searchTransit(mid);
+        await loadLeaflet();
+        document.getElementById("meetResults").hidden=false;
+        document.getElementById("meetSummary").innerHTML='<h2>두 위치의 지리적 중간 지점</h2><p><b>'+esc(from.name)+'</b> ↔ <b>'+esc(to.name)+'</b></p><p>위도 '+mid.lat.toFixed(5)+' · 경도 '+mid.lon.toFixed(5)+'</p><p class="muted">이 지점은 직선거리 기준 중간점이며, 실제 이동 시간이나 대중교통 이동거리의 중간은 아닙니다.</p>';
+        document.getElementById("meetTransit").innerHTML="";
+        const groups=[["버스정류장",transit.filter(x=>x.type==="버스정류장")],["지하철역",transit.filter(x=>x.type==="지하철역")],["기차역",transit.filter(x=>x.type==="기차역")]];
+        groups.forEach(([name,items])=>{
+          const section=document.createElement("section");section.className="meet-transit-group";
+          const heading=document.createElement("h3");heading.textContent=name+" ("+items.length+")";section.appendChild(heading);
+          if(!items.length){const p=document.createElement("p");p.className="muted";p.textContent="반경 2.2km 내 검색 결과 없음";section.appendChild(p);}
+          items.slice(0,12).forEach(item=>{const p=document.createElement("p");p.className="meet-transit-item";p.textContent=item.name+" · 중간점에서 약 "+item.distance+"m";p.onclick=()=>meetMap?.setView([item.lat,item.lon],16);p.title="지도에서 위치 보기";section.appendChild(p);});
+          document.getElementById("meetTransit").appendChild(section);
+        });
+        if(meetMap){meetMap.remove();meetMap=null;}
+        meetMap=L.map("meetMap").setView([mid.lat,mid.lon],13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(meetMap);
+        const markers=[{p:from,label:"첫 번째 위치"},{p:to,label:"두 번째 위치"}];
+        markers.forEach(({p,label})=>L.marker([p.lat,p.lon]).addTo(meetMap).bindPopup("<b>"+label+"</b><br>"+esc(p.name)));
+        L.circleMarker([mid.lat,mid.lon],{radius:10,color:"#d45d45",fillColor:"#f28a72",fillOpacity:.9}).addTo(meetMap).bindPopup("<b>지리적 중간 지점</b>").openPopup();
+        transit.forEach(item=>{const color=item.type==="버스정류장"?"#3978c5":item.type==="지하철역"?"#269b72":"#9b68bd";L.circleMarker([item.lat,item.lon],{radius:6,color,fillColor:color,fillOpacity:.8}).addTo(meetMap).bindPopup("<b>"+esc(item.name)+"</b><br>"+item.type+" · 약 "+item.distance+"m");});
+        const bounds=L.latLngBounds([[from.lat,from.lon],[to.lat,to.lon],[mid.lat,mid.lon]]);meetMap.fitBounds(bounds.pad(.2));setTimeout(()=>meetMap?.invalidateSize(),100);
+        status.textContent="검색 완료 · 주변 시설은 지도 데이터의 등록 상태에 따라 누락될 수 있습니다.";
+      }catch(error){status.textContent=error.message;}
+      finally{button.disabled=false;}
+    };
+  }
+
   function showError(error){toast(error?.message||"오류가 발생했습니다.");}
   async function renderRoute() {
     if(activeMiniGameCleanup)activeMiniGameCleanup();
@@ -539,6 +648,8 @@
     else if(page==="google") await renderGoogle();
     else if(page==="contents") await renderContents();
     else if(page==="tetris") await renderTetris();
+    else if(page==="utilities"&&parts[1]==="meet") await renderMeet();
+    else if(page==="utilities") await renderUtilities();
     else if(page==="worldcups"&&parts[1]==="new") await renderWorldcupNew();
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays"&&parts[4]==="result") await renderWorldcupResult(parts[1],parts[3]);
     else if(page==="worldcups"&&parts[1]&&parts[2]==="plays") await renderPlay(parts[1],parts[3]);
