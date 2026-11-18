@@ -558,11 +558,21 @@
     const lon=lon1+Math.atan2(by,Math.cos(lat1)+bx);
     return {lat:lat/rad,lon:((lon/rad+540)%360)-180};
   }
-  async function searchTransit(mid) {
-    const q='[out:json][timeout:25];(node(around:2200,'+mid.lat+','+mid.lon+')[highway=bus_stop];node(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];node(around:2200,'+mid.lat+','+mid.lon+')[railway=station];node(around:2200,'+mid.lat+','+mid.lon+')[railway=subway_entrance];way(around:2200,'+mid.lat+','+mid.lon+')[railway=station];way(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];);out center tags;';
-    const response=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(q)});
-    if(!response.ok)throw new Error("주변 대중교통 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-    const data=await response.json();
+  async function searchTransit(mid, onStatus) {
+    const q='[out:json][timeout:18];(node(around:2200,'+mid.lat+','+mid.lon+')[highway=bus_stop];node(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];node(around:2200,'+mid.lat+','+mid.lon+')[railway=station];node(around:2200,'+mid.lat+','+mid.lon+')[railway=subway_entrance];way(around:2200,'+mid.lat+','+mid.lon+')[railway=station];way(around:2200,'+mid.lat+','+mid.lon+')[public_transport=platform];);out center tags;';
+    const endpoints=["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter","https://z.overpass-api.de/api/interpreter"];
+    let data=null,lastError=null;
+    for(let i=0;i<endpoints.length;i++){
+      onStatus?.("주변 대중교통 정보 조회 중… ("+(i+1)+"/"+endpoints.length+")",38+i*12);
+      const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),20000);
+      try{
+        const response=await fetch(endpoints[i],{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:"data="+encodeURIComponent(q),signal:controller.signal});
+        if(!response.ok)throw new Error("지도 데이터 서버 응답 오류 ("+response.status+")");
+        data=await response.json();break;
+      }catch(error){lastError=error;}
+      finally{clearTimeout(timer);}
+    }
+    if(!data)throw new Error("주변 대중교통 조회에 실패했습니다. 외부 지도 데이터 서버가 일시적으로 응답하지 않습니다. "+(lastError?.name==="AbortError"?"요청 시간이 초과되었습니다.":"잠시 후 다시 시도해 주세요."));
     const seen=new Set();
     return (data.elements||[]).map(el=>{
       const tags=el.tags||{}, lat=el.lat??el.center?.lat, lon=el.lon??el.center?.lon;
@@ -580,7 +590,7 @@
     }).filter(Boolean).sort((x,y)=>x.distance-y.distance);
   }
   async function renderMeet() {
-    shell("중간에서 만나",'<section class="panel meet-panel"><p class="muted">출발지와 도착지를 각각 검색하고, 정확히 일치하는 주소나 장소를 선택해 주세요. 두 위치의 대권 경로상 중간점을 계산합니다.</p><div class="meet-inputs"><div class="meet-location"><label for="meetFrom">첫 번째 위치</label><div class="meet-search-row"><input id="meetFrom" placeholder="예: 서울역, 경기도 성남시 분당구..." autocomplete="off"><button class="btn secondary" id="searchFrom">검색</button></div><div id="fromChoices" class="meet-choices"></div><p id="fromSelected" class="meet-selected">선택된 위치 없음</p></div><div class="meet-location"><label for="meetTo">두 번째 위치</label><div class="meet-search-row"><input id="meetTo" placeholder="예: 강남역, 인천광역시 연수구..." autocomplete="off"><button class="btn secondary" id="searchTo">검색</button></div><div id="toChoices" class="meet-choices"></div><p id="toSelected" class="meet-selected">선택된 위치 없음</p></div></div><button id="findMeet" class="btn primary meet-submit" disabled>중간 지점 및 교통편 찾기</button><p id="meetStatus" class="muted" aria-live="polite">주소 검색은 OpenStreetMap, 대중교통 위치는 OpenStreetMap 데이터로 조회합니다.</p></section><section id="meetResults" hidden><div class="panel meet-summary" id="meetSummary"></div><div id="meetMap" class="meet-map"></div><div class="panel"><h2>주변 대중교통</h2><div id="meetTransit" class="meet-transit"></div><p class="meet-credit">지도 © OpenStreetMap contributors · 주소 검색 Nominatim · 주변 시설 Overpass API</p></div></section>',"utilities");
+    shell("중간에서 만나",'<section class="panel meet-panel"><p class="muted">출발지와 도착지를 각각 검색하고, 정확히 일치하는 주소나 장소를 선택해 주세요. 두 위치의 대권 경로상 중간점을 계산합니다.</p><div class="meet-inputs"><div class="meet-location"><label for="meetFrom">첫 번째 위치</label><div class="meet-search-row"><input id="meetFrom" placeholder="예: 서울역, 경기도 성남시 분당구..." autocomplete="off"><button class="btn secondary" id="searchFrom">검색</button></div><div id="fromChoices" class="meet-choices"></div><p id="fromSelected" class="meet-selected">선택된 위치 없음</p></div><div class="meet-location"><label for="meetTo">두 번째 위치</label><div class="meet-search-row"><input id="meetTo" placeholder="예: 강남역, 인천광역시 연수구..." autocomplete="off"><button class="btn secondary" id="searchTo">검색</button></div><div id="toChoices" class="meet-choices"></div><p id="toSelected" class="meet-selected">선택된 위치 없음</p></div></div><button id="findMeet" class="btn primary meet-submit" disabled>중간 지점 및 교통편 찾기</button><p id="meetStatus" class="muted" aria-live="polite">주소 검색은 OpenStreetMap, 대중교통 위치는 OpenStreetMap 데이터로 조회합니다.</p><div id="meetProgressWrap" class="meet-progress-wrap" hidden><div class="meet-progress-track"><div id="meetProgressBar" class="meet-progress-bar"></div></div><div class="meet-progress-meta"><span id="meetProgressLabel">준비 중…</span><span id="meetProgressPercent">0%</span></div></div></section><section id="meetResults" hidden><div class="panel meet-summary" id="meetSummary"></div><div id="meetMap" class="meet-map"></div><div class="panel"><h2>주변 대중교통</h2><div id="meetTransit" class="meet-transit"></div><p class="meet-credit">지도 © OpenStreetMap contributors · 주소 검색 Nominatim · 주변 시설 Overpass API</p></div></section>',"utilities");
     let from=null,to=null;
     const status=document.getElementById("meetStatus");
     async function search(which) {
@@ -607,12 +617,28 @@
     document.getElementById("searchTo").onclick=()=>search("to");
     document.getElementById("meetFrom").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();search("from");}};
     document.getElementById("meetTo").onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();search("to");}};
+    const progressWrap=document.getElementById("meetProgressWrap");
+    const progressBar=document.getElementById("meetProgressBar");
+    const progressLabel=document.getElementById("meetProgressLabel");
+    const progressPercent=document.getElementById("meetProgressPercent");
+    function setProgress(label,percent){
+      progressWrap.hidden=false;progressLabel.textContent=label;
+      progressBar.style.width=percent+"%";progressPercent.textContent=percent+"%";
+      status.textContent=label;
+    }
+    let isFinding=false;
     document.getElementById("findMeet").onclick=async()=>{
-      if(!from||!to)return;
-      const button=document.getElementById("findMeet");button.disabled=true;status.textContent="중간 지점과 주변 대중교통을 검색하고 있습니다…";
+      if(!from||!to||isFinding)return;
+      isFinding=true;
+      const button=document.getElementById("findMeet");button.disabled=true;
+      document.getElementById("meetResults").hidden=true;
+      setProgress("중간 지점을 계산하고 있습니다…",8);
       try{
-        const mid=geoMidpoint(from,to), transit=await searchTransit(mid);
+        const mid=geoMidpoint(from,to);
+        const transit=await searchTransit(mid,setProgress);
+        setProgress("지도 라이브러리를 준비하고 있습니다…",78);
         await loadLeaflet();
+        setProgress("지도와 위치 정보를 표시하고 있습니다…",90);
         document.getElementById("meetResults").hidden=false;
         document.getElementById("meetSummary").innerHTML='<h2>두 위치의 지리적 중간 지점</h2><p><b>'+esc(from.name)+'</b> ↔ <b>'+esc(to.name)+'</b></p><p>위도 '+mid.lat.toFixed(5)+' · 경도 '+mid.lon.toFixed(5)+'</p><p class="muted">이 지점은 직선거리 기준 중간점이며, 실제 이동 시간이나 대중교통 이동거리의 중간은 아닙니다.</p>';
         document.getElementById("meetTransit").innerHTML="";
@@ -632,9 +658,9 @@
         L.circleMarker([mid.lat,mid.lon],{radius:10,color:"#d45d45",fillColor:"#f28a72",fillOpacity:.9}).addTo(meetMap).bindPopup("<b>지리적 중간 지점</b>").openPopup();
         transit.forEach(item=>{const color=item.type==="버스정류장"?"#3978c5":item.type==="지하철역"?"#269b72":"#9b68bd";L.circleMarker([item.lat,item.lon],{radius:6,color,fillColor:color,fillOpacity:.8}).addTo(meetMap).bindPopup("<b>"+esc(item.name)+"</b><br>"+item.type+" · 약 "+item.distance+"m");});
         const bounds=L.latLngBounds([[from.lat,from.lon],[to.lat,to.lon],[mid.lat,mid.lon]]);meetMap.fitBounds(bounds.pad(.2));setTimeout(()=>meetMap?.invalidateSize(),100);
-        status.textContent="검색 완료 · 주변 시설은 지도 데이터의 등록 상태에 따라 누락될 수 있습니다.";
-      }catch(error){status.textContent=error.message;}
-      finally{button.disabled=false;}
+        setProgress("검색 완료 · 주변 시설은 지도 데이터 등록 상태에 따라 누락될 수 있습니다.",100);
+      }catch(error){status.textContent=error.message;setProgress("조회 실패 · 다시 시도할 수 있습니다.",0);}
+      finally{isFinding=false;button.disabled=false;}
     };
   }
 
