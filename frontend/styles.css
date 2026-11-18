@@ -137,3 +137,10 @@
  .meet-map{height:380px}
  .meet-transit{grid-template-columns:1fr}
 }
+
+/* 중간에서 만나 조회 진행 표시 */
+.meet-progress-wrap{display:grid;gap:7px;margin-top:2px;max-width:680px}
+.meet-progress-track{height:10px;border-radius:999px;background:#e9ece7;overflow:hidden}
+.meet-progress-bar{height:100%;width:0;background:linear-gradient(90deg,#3978c5,#269b72);border-radius:999px;transition:width .35s ease}
+.meet-progress-meta{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#68736b}
+#findMeet:disabled{opacity:.65;cursor:wait}
