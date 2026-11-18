@@ -24,7 +24,7 @@ Gradle Wrapper(8.14.3)가 포함되어 있어 별도 Gradle 설치가 필요 없
 상단 `유틸` 메뉴의 `중간에서 만나`에서 두 장소를 각각 검색하고 검색 결과 중 정확한 주소·장소를 선택하면 지리적 중간 지점을 계산합니다. 지도에는 두 입력 위치, 중간점, 주변 버스정류장·지하철역·기차역을 표시하며 목록을 누르면 해당 위치로 이동합니다.
 
 - 프론트엔드 전용 기능으로 가족앨범 백엔드 API나 DB를 사용하지 않습니다.
-- 주소 검색: OpenStreetMap Nominatim, 주변 대중교통: Overpass API, 지도: Leaflet + OpenStreetMap 타일을 브라우저에서 호출합니다.
+- 주소 검색은 브라우저에서 OpenStreetMap Nominatim을 호출합니다. 주변 대중교통은 Cloudflare Worker SSE(`/meet/transit/stream`)로 버스·지하철·기차별 결과를 수신 즉시 화면과 지도에 반영합니다. Worker가 Overpass API 여러 엔드포인트를 재시도하며 한 종류가 실패해도 성공한 결과는 유지합니다. SSE는 Spring Boot API나 DB를 사용하지 않습니다. 지도는 Leaflet + OpenStreetMap 타일을 사용합니다.
 - 중간점은 두 좌표 사이의 대권 경로상 지리적 중간점입니다. 실제 대중교통 이동시간·거리의 중간 지점은 아니며, 대중교통 시설은 OpenStreetMap 데이터의 등록 범위에 따라 누락될 수 있습니다.
 - 외부 지도 데이터 제공자의 이용 정책과 사용량 제한이 적용됩니다.
 
