@@ -1,6 +1,7 @@
 package com.familyalbum.api;
 
 import com.familyalbum.security.AppPrincipal;
+import com.familyalbum.service.AuthService;
 import com.familyalbum.web.Dtos.MeResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,17 +27,34 @@ public class AuthApiController {
     public record LoginRequest(String email, String password) {}
 
     private final AuthenticationManager authenticationManager;
+    private final AuthService authService;
     private final SecurityContextRepository contextRepository;
 
     public AuthApiController(@Qualifier("authenticationManager") AuthenticationManager authenticationManager,
-                             @Qualifier("securityContextRepository") SecurityContextRepository contextRepository) {
+                             @Qualifier("securityContextRepository") SecurityContextRepository contextRepository,
+                             AuthService authService) {
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
+        this.authService = authService;
     }
 
     @GetMapping("/csrf")
     public Map<String, String> csrf(CsrfToken token) {
         return Map.of("headerName", token.getHeaderName(), "token", token.getToken());
+    }
+
+    /** 새 게스트 전용 가족 앨범을 만들고 현재 브라우저 세션에 로그인합니다. */
+    @PostMapping("/guest")
+    public MeResponse guest(HttpServletRequest servletRequest, HttpServletResponse response) {
+        AppPrincipal principal = AppPrincipal.from(authService.createGuest());
+        HttpSession existing = servletRequest.getSession(false);
+        if (existing != null) servletRequest.changeSessionId();
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(UsernamePasswordAuthenticationToken.authenticated(
+                principal, null, principal.getAuthorities()));
+        SecurityContextHolder.setContext(context);
+        contextRepository.saveContext(context, servletRequest, response);
+        return new MeResponse(principal.userId(), principal.name(), principal.email(), principal.familyId());
     }
 
     @PostMapping("/login")
