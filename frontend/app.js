@@ -60,10 +60,10 @@
   const shell = (title, content, active = "photos") => {
     app.innerHTML = `
       <header class="topbar"><a class="brand" href="#photos">▧ 가족앨범</a>
-        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${active==="tetris"?"on":""}" href="#tetris">미니게임</a><a class="${active==="utilities"?"on":""}" href="#utilities">유틸</a></nav>
+        <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${["tetris","minigames","janggi","omok"].includes(active)?"on":""}" href="#minigames">미니게임</a><a class="${active==="utilities"?"on":""}" href="#utilities">유틸</a></nav>
         <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">로그아웃</button>
       </header><main class="wrap"><div class="pagehead"><h1>${title}</h1></div>${content}</main>
-      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#tetris">게임</a><a href="#utilities">유틸</a></nav>`;
+      <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#minigames">게임</a><a href="#utilities">유틸</a></nav>`;
     document.getElementById("logout").onclick = logout;
   };
   function renderAuth(message = "") {
@@ -622,6 +622,9 @@
     else if(page==="google") await renderGoogle();
     else if(page==="contents") await renderContents();
     else if(page==="tetris") await renderTetris();
+    else if(page==="minigames") window.renderMiniGames();
+    else if(page==="janggi") window.renderJanggi();
+    else if(page==="omok") window.renderOmok();
     else if(page==="utilities"&&parts[1]==="meet") await renderMeet();
     else if(page==="utilities") await renderUtilities();
     else if(page==="worldcups"&&parts[1]==="new") await renderWorldcupNew();
