@@ -144,3 +144,44 @@
 .meet-progress-bar{height:100%;width:0;background:linear-gradient(90deg,#3978c5,#269b72);border-radius:999px;transition:width .35s ease}
 .meet-progress-meta{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#68736b}
 #findMeet:disabled{opacity:.65;cursor:wait}
+
+
+/* 미니게임 공통 메뉴 */
+.minigame-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.minigame-card{display:flex;flex-direction:column;gap:10px;min-height:190px;padding:22px;background:#fff;border:1px solid #ebe8e2;border-radius:18px;transition:transform .15s,border-color .15s}
+.minigame-card:hover{transform:translateY(-2px);border-color:#b9cbbd}
+.minigame-icon{font-size:38px}.minigame-card h2{margin:0;font-size:20px}.minigame-card p{margin:0;color:#818078;font-size:13px;line-height:1.5}
+.board-game{max-width:780px;margin:0 auto}
+.board-game-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.board-game-status{padding:12px 16px;border-radius:12px;background:#edf2ed;color:#315f4b;font-weight:750}
+.board-game-actions{display:flex;gap:8px;flex-wrap:wrap}
+.janggi-wrap{padding:clamp(10px,3vw,24px);background:#d9a85f;border:8px solid #8a5c2c;border-radius:12px;box-shadow:inset 0 0 0 2px #f5d69b}
+.janggi-board{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));aspect-ratio:9/10;position:relative;background:#f0cc8e}
+.janggi-cell{position:relative;min-width:0;min-height:0;border-right:1px solid #76552e;border-bottom:1px solid #76552e;display:flex;align-items:center;justify-content:center}
+.janggi-cell:nth-child(-n+9){border-top:1px solid #76552e}
+.janggi-cell:nth-child(9n+1){border-left:1px solid #76552e}
+.janggi-cell button{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;z-index:1}
+.janggi-cell.selected:after{content:"";position:absolute;inset:4%;border:3px solid #d14c35;border-radius:50%;z-index:0}
+.janggi-cell.legal:before{content:"";position:absolute;width:22%;height:22%;border-radius:50%;background:#315f4b99;z-index:0}
+.janggi-piece{width:82%;height:82%;max-width:54px;max-height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:serif;font-size:clamp(15px,3.8vw,28px);font-weight:900;box-shadow:0 2px 4px #0004;border:2px solid currentColor;pointer-events:none}
+.janggi-piece.blue{background:#e9f1f7;color:#245d91}.janggi-piece.red{background:#f9e7df;color:#a53d32}
+.janggi-hint{font-size:12px;color:#76552e;margin:12px 0 0;text-align:center}
+.omok-board-wrap{padding:clamp(8px,2.5vw,20px);background:#d7a65d;border:5px solid #95652f;border-radius:12px}
+.omok-board{display:grid;grid-template-columns:repeat(15,minmax(0,1fr));aspect-ratio:1;background:#e7bd7d;border:1px solid #76552e}
+.omok-cell{position:relative;aspect-ratio:1;min-width:0;min-height:0;border:0;background:transparent;padding:0;cursor:pointer}
+.omok-cell:before,.omok-cell:after{content:"";position:absolute;background:#76552e}
+.omok-cell:before{height:1px;left:0;right:0;top:50%}
+.omok-cell:after{width:1px;top:0;bottom:0;left:50%}
+.omok-stone{position:absolute;width:82%;height:82%;left:9%;top:9%;border-radius:50%;z-index:1;box-shadow:1px 2px 3px #0005}
+.omok-stone.black{background:radial-gradient(circle at 32% 28%,#666,#080808 65%)}
+.omok-stone.white{background:radial-gradient(circle at 32% 28%,#fff,#d7d7d7 75%);border:1px solid #888}
+.omok-cell.last .omok-stone:after{content:"";position:absolute;width:22%;height:22%;left:39%;top:39%;background:#d34c36;border-radius:50%}
+.board-game-help{font-size:13px;color:#777;line-height:1.7;margin-top:12px}
+@media(max-width:700px){
+ .minigame-menu{grid-template-columns:1fr}
+ .minigame-card{min-height:0;padding:18px}
+ .janggi-wrap{border-width:5px;padding:7px}
+ .janggi-piece{border-width:1px}
+ .omok-board-wrap{padding:5px;border-width:3px}
+ .board-game-status{width:100%;text-align:center}
+}
