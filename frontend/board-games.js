@@ -63,31 +63,48 @@
     return out;
   }
   window.renderJanggi=()=>{
-    shell("장기",'<section class="panel board-game"><div class="board-game-toolbar"><div id="janggiStatus" class="board-game-status">초 차례 · 파란색</div><div class="board-game-actions"><button class="btn ghost" id="janggiMenu">게임 목록</button><button class="btn primary" id="janggiReset">새 게임</button></div></div><div class="janggi-wrap"><div id="janggiBoard" class="janggi-board" role="grid" aria-label="장기판"></div><p class="janggi-hint">파란색: 초 · 빨간색: 한 · 기물을 선택한 뒤 이동할 칸을 누르세요.</p></div><p class="board-game-help">기물 이동 규칙을 적용한 2인 로컬 대전입니다. 상대 장군을 잡으면 승리합니다.</p></section>');
-    let board=initial(),turn="blue",selected=null,legal=[],ended=false;
+    shell("장기",'<section class="panel board-game"><div class="board-game-toolbar"><div id="janggiStatus" class="board-game-status">초 차례 · 파란색</div><div class="board-game-actions"><button class="btn ghost" id="janggiMenu">게임 목록</button><button class="btn primary" id="janggiReset">새 게임</button></div></div><div class="janggi-layout"><div class="janggi-wrap"><div id="janggiBoard" class="janggi-board" role="grid" aria-label="장기판"></div><p class="janggi-hint">파란색: 초 · 빨간색: 한 · 기물을 선택한 뒤 이동할 칸을 누르세요.</p></div><aside class="janggi-captured" aria-label="잡은 기물"><section><h3>초가 잡은 기물</h3><div id="janggiCapturedBlue" class="janggi-captured-list"><span class="janggi-captured-empty">없음</span></div></section><section><h3>한이 잡은 기물</h3><div id="janggiCapturedRed" class="janggi-captured-list"><span class="janggi-captured-empty">없음</span></div></section></aside></div><p class="board-game-help">기물 이동 규칙을 적용한 2인 로컬 대전입니다. 상대 장군을 잡으면 승리합니다.</p></section>');
+    let board=initial(),turn="blue",selected=null,legal=[],ended=false,captured={blue:[],red:[]};
     const root=document.getElementById("janggiBoard"),status=document.getElementById("janggiStatus");
     const labels={將:"楚",車:"車",馬:"馬",象:"象",士:"士",包:"包",卒:"卒"};
+    function drawCaptured(){
+      for(const side of ["blue","red"]){
+        const target=document.getElementById(side==="blue"?"janggiCapturedBlue":"janggiCapturedRed");
+        target.innerHTML="";
+        if(!captured[side].length){target.innerHTML='<span class="janggi-captured-empty">없음</span>';continue;}
+        captured[side].forEach(piece=>{
+          const stone=document.createElement("span");
+          stone.className="janggi-captured-piece "+piece.side;
+          stone.textContent=piece.type==="將"?(piece.side==="blue"?"楚":"漢"):labels[piece.type];
+          stone.title=(piece.side==="blue"?"초":"한")+" 기물";
+          target.appendChild(stone);
+        });
+      }
+    }
     function draw(){
-      root.innerHTML="";
+      root.innerHTML='<svg class="janggi-lines" viewBox="0 0 900 1000" preserveAspectRatio="none" aria-hidden="true"><g class="janggi-grid-lines"><path d="M50 50H850 M50 150H850 M50 250H850 M50 350H850 M50 450H850 M50 550H850 M50 650H850 M50 750H850 M50 850H850 M50 950H850 M50 50V950 M150 50V950 M250 50V950 M350 50V950 M450 50V950 M550 50V950 M650 50V950 M750 50V950 M850 50V950"/></g><g class="janggi-palace-lines"><path d="M350 50L550 250 M550 50L350 250 M350 750L550 950 M550 750L350 950"/></g></svg>';
       for(let r=0;r<N;r++)for(let c=0;c<M;c++){
         const cell=document.createElement("div");cell.className="janggi-cell"+(selected&&selected[0]===r&&selected[1]===c?" selected":"")+(legal.some(q=>q[0]===r&&q[1]===c)?" legal":"");
         const btn=document.createElement("button");btn.type="button";btn.setAttribute("aria-label",r+"행 "+(c+1)+"열"+(board[r][c]?" "+labels[board[r][c].type]:""));
         const p=board[r][c];if(p){const stone=document.createElement("span");stone.className="janggi-piece "+p.side;stone.textContent=p.type==="將"?(p.side==="blue"?"楚":"漢"):labels[p.type];btn.appendChild(stone);}
         btn.onclick=()=>play(r,c);cell.appendChild(btn);root.appendChild(cell);
       }
+      drawCaptured();
       status.textContent=ended?(turn==="blue"?"초":"한")+" 승리 · 새 게임으로 다시 시작하세요.":(turn==="blue"?"초 차례 · 파란색":"한 차례 · 빨간색");
     }
     function play(r,c){
       if(ended)return;
       const p=board[r][c];
       if(selected&&legal.some(q=>q[0]===r&&q[1]===c)){
-        const [sr,sc]=selected,captured=board[r][c];board[r][c]=board[sr][sc];board[sr][sc]=null;
-        selected=null;legal=[];if(captured?.type==="將"){ended=true;}else turn=turn==="blue"?"red":"blue";draw();return;
+        const [sr,sc]=selected,taken=board[r][c],moving=board[sr][sc];
+        if(taken)captured[turn].push(taken);
+        board[r][c]=moving;board[sr][sc]=null;
+        selected=null;legal=[];if(taken?.type==="將"){ended=true;}else turn=turn==="blue"?"red":"blue";draw();return;
       }
       if(p?.side===turn){selected=[r,c];legal=moves(board,r,c);draw();return;}
       selected=null;legal=[];draw();
     }
-    document.getElementById("janggiReset").onclick=()=>{board=initial();turn="blue";selected=null;legal=[];ended=false;draw();};
+    document.getElementById("janggiReset").onclick=()=>{board=initial();turn="blue";selected=null;legal=[];ended=false;captured={blue:[],red:[]};draw();};
     document.getElementById("janggiMenu").onclick=()=>location.hash="#minigames";
     draw();
   };
