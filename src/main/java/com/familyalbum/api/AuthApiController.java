@@ -46,6 +46,10 @@ public class AuthApiController {
     /** 새 게스트 전용 가족 앨범을 만들고 현재 브라우저 세션에 로그인합니다. */
     @PostMapping("/guest")
     public MeResponse guest(HttpServletRequest servletRequest, HttpServletResponse response) {
+        Authentication current = SecurityContextHolder.getContext().getAuthentication();
+        if (current != null && current.isAuthenticated() && current.getPrincipal() instanceof AppPrincipal existing) {
+            return new MeResponse(existing.userId(), existing.name(), existing.email(), existing.familyId());
+        }
         AppPrincipal principal = AppPrincipal.from(authService.createGuest());
         HttpSession existing = servletRequest.getSession(false);
         if (existing != null) servletRequest.changeSessionId();
