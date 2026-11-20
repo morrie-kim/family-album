@@ -50,12 +50,12 @@
       if(palaceRows.includes(r)&&c>=3&&c<=5)for(const [dr,dc] of [[forward,-1],[forward,1]])if(palace(r+dr,c+dc,p.side)&&palaceLine(r,c,r+dr,c+dc))add(r+dr,c+dc);
     }else if(p.type==="馬"){
       for(const [dr,dc] of [[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[-1,2],[1,-2],[1,2]]){
-        const br=r+(Math.abs(dr)===2?Math.sign(dr):0),bc=c+(Math.abs(dc)===2?Math.sign(dc):0);
+        const br=r+(Math.abs(dr)===2?Math.sign(dr):0),bc=c+(Math.abs(dr)===2?0:Math.sign(dc));
         if(b[br]?.[bc])continue;add(r+dr,c+dc);
       }
     }else if(p.type==="象"){
       for(const [dr,dc] of [[-3,-2],[-3,2],[3,-2],[3,2],[-2,-3],[-2,3],[2,-3],[2,3]]){
-        const s1r=r+Math.sign(dr),s1c=c+(Math.abs(dr)===3?0:Math.sign(dc));
+        const s1r=r+(Math.abs(dr)===3?Math.sign(dr):0),s1c=c+(Math.abs(dr)===3?0:Math.sign(dc));
         const s2r=r+(Math.abs(dr)===3?2*Math.sign(dr):Math.sign(dr)),s2c=c+(Math.abs(dr)===3?Math.sign(dc):2*Math.sign(dc));
         if(b[s1r]?.[s1c]||b[s2r]?.[s2c])continue;add(r+dr,c+dc);
       }
@@ -72,10 +72,10 @@
       for(let r=0;r<N;r++)for(let c=0;c<M;c++){
         const cell=document.createElement("div");cell.className="janggi-cell"+(selected&&selected[0]===r&&selected[1]===c?" selected":"")+(legal.some(q=>q[0]===r&&q[1]===c)?" legal":"");
         const btn=document.createElement("button");btn.type="button";btn.setAttribute("aria-label",r+"행 "+(c+1)+"열"+(board[r][c]?" "+labels[board[r][c].type]:""));
-        const p=board[r][c];if(p){const stone=document.createElement("span");stone.className="janggi-piece "+p.side;stone.textContent=labels[p.type];btn.appendChild(stone);}
+        const p=board[r][c];if(p){const stone=document.createElement("span");stone.className="janggi-piece "+p.side;stone.textContent=p.type==="將"?(p.side==="blue"?"楚":"漢"):labels[p.type];btn.appendChild(stone);}
         btn.onclick=()=>play(r,c);cell.appendChild(btn);root.appendChild(cell);
       }
-      status.textContent=ended?(turn==="blue"?"한":"초")+" 승리 · 새 게임으로 다시 시작하세요.":(turn==="blue"?"초 차례 · 파란색":"한 차례 · 빨간색");
+      status.textContent=ended?(turn==="blue"?"초":"한")+" 승리 · 새 게임으로 다시 시작하세요.":(turn==="blue"?"초 차례 · 파란색":"한 차례 · 빨간색");
     }
     function play(r,c){
       if(ended)return;
