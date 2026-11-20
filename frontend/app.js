@@ -61,42 +61,30 @@
     app.innerHTML = `
       <header class="topbar"><a class="brand" href="#photos">▧ 가족앨범</a>
         <nav><a class="${active==="photos"?"on":""}" href="#photos">사진</a><a class="${active==="family"?"on":""}" href="#family">가족</a><a class="${active==="worldcups"?"on":""}" href="#worldcups">월드컵</a><a class="${active==="google"?"on":""}" href="#google">구글 포토</a><a class="${active==="contents"?"on":""}" href="#contents">콘텐츠 찾기</a><a class="${["tetris","minigames","janggi","omok"].includes(active)?"on":""}" href="#minigames">미니게임</a><a class="${active==="utilities"?"on":""}" href="#utilities">유틸</a></nav>
-        <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">로그아웃</button>
+        <span class="user">${esc(me?.name)}</span><button class="btn ghost" id="logout">나가기</button>
       </header><main class="wrap"><div class="pagehead"><h1>${title}</h1></div>${content}</main>
       <nav class="mobile-nav"><a href="#photos">사진</a><a href="#family">가족</a><a href="#worldcups">월드컵</a><a href="#google">구글</a><a href="#contents">콘텐츠</a><a href="#minigames">게임</a><a href="#utilities">유틸</a></nav>`;
     document.getElementById("logout").onclick = logout;
   };
   function renderAuth(message = "") {
-    app.innerHTML = `<main class="auth-card"><div class="logo">▧</div><h1>가족의 순간을<br>한곳에 모아요</h1><p class="muted">이메일로 로그인하고 가족 앨범을 열어 보세요.</p>
+    app.innerHTML = `<main class="auth-card"><div class="logo">▧</div>
+      <h1>가족의 순간을<br>한곳에 모아요</h1>
+      <p class="muted">로그인 없이 게스트 앨범을 바로 시작할 수 있습니다.</p>
+      <p class="muted">게스트 앨범은 기존 가족 앨범과 분리됩니다. 나가면 같은 게스트 앨범으로 다시 접속할 수 없습니다.</p>
       ${message ? `<p class="error">${esc(message)}</p>` : ""}
-      <form id="login" class="stack"><label>이메일<input name="email" type="email" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required></label><button class="btn primary">로그인</button></form>
-      <details><summary>처음이세요? 회원가입</summary><form id="signup" class="stack">
-        <label>이름<input name="name" required maxlength="50"></label><label>이메일<input name="email" type="email" required></label>
-        <label>비밀번호<input name="password" type="password" minlength="8" maxlength="72" required></label>
-        <label>가족 가입 방식<select name="mode" id="signupMode"><option value="new">새 가족 만들기</option><option value="join">초대 코드로 합류</option></select></label>
-        <label id="familyNameField">가족 이름<input name="familyName" maxlength="100"></label>
-        <label id="inviteField" hidden>초대 코드<input name="inviteCode" maxlength="16"></label>
-        <button class="btn secondary">가입하기</button></form></details></main>`;
-    document.getElementById("login").onsubmit = async e => {
-      e.preventDefault(); const f = new FormData(e.currentTarget);
-      try { await getCsrf(); await request("/api/auth/login",{method:"POST",body:json({email:f.get("email"),password:f.get("password")})}); await boot(); }
-      catch(err){ renderAuth(err.message); }
-    };
-    document.getElementById("signupMode").onchange = e => {
-      document.getElementById("familyNameField").hidden = e.target.value !== "new";
-      document.getElementById("inviteField").hidden = e.target.value !== "join";
-    };
-    document.getElementById("signup").onsubmit = async e => {
-      e.preventDefault(); const f = new FormData(e.currentTarget); const join = f.get("mode")==="join";
+      <button id="startGuest" class="btn primary">게스트로 시작하기</button>
+    </main>`;
+    document.getElementById("startGuest").onclick = async () => {
+      const button = document.getElementById("startGuest");
+      button.disabled = true;
+      button.textContent = "게스트 앨범을 준비하고 있습니다…";
       try {
         await getCsrf();
-        await request("/api/auth/signup",{method:"POST",body:json({
-          name:f.get("name"),email:f.get("email"),password:f.get("password"),
-          familyName:join?null:f.get("familyName"),inviteCode:join?f.get("inviteCode"):null
-        })});
-        await request("/api/auth/login",{method:"POST",body:json({email:f.get("email"),password:f.get("password")})});
+        await request("/api/auth/guest", {method:"POST"});
         await boot();
-      } catch(err){ renderAuth(err.message); }
+      } catch (error) {
+        renderAuth(error.message);
+      }
     };
   }
   async function logout() {
