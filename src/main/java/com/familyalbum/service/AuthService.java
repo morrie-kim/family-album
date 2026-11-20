@@ -80,6 +80,21 @@ public class AuthService {
         return user;
     }
 
+    /** 로그인 없이 사용할 독립 게스트 가족/계정/기본 폴더를 생성합니다. */
+    @Transactional
+    public AppUser createGuest() {
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        Family family = families.save(new Family("게스트 앨범", newInviteCode()));
+        AppUser guest = users.save(new AppUser(
+                "guest-" + suffix + "@guest.family-album.invalid",
+                encoder.encode(UUID.randomUUID().toString()),
+                "게스트",
+                family,
+                FamilyRole.ADMIN));
+        folders.save(new Folder(family, DEFAULT_FOLDER_NAME, guest, true));
+        return guest;
+    }
+
     private static String newInviteCode() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
